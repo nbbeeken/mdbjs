@@ -15,7 +15,7 @@
     "build:prod": "webpack --mode=production --node-env=production",
     "watch": "webpack --watch",
     "build:dts": "api-extractor run",
-    "prepare": "npm run build && npm run build:dts"
+    "setup": "npm run build:prod && npm run build:dts && npm pack"
   },
   "keywords": [],
   "author": "",
