@@ -25016,24 +25016,13 @@ exports.setupHook = exports.hooks = exports.BSON = exports.MongoClient = void 0;
 var mongodb_1 = __webpack_require__(/*! mongodb */ "./node_modules/mongodb/lib/index.js");
 Object.defineProperty(exports, "MongoClient", ({ enumerable: true, get: function () { return mongodb_1.MongoClient; } }));
 Object.defineProperty(exports, "BSON", ({ enumerable: true, get: function () { return mongodb_1.BSON; } }));
-const net_1 = __webpack_require__(/*! ./modules/net */ "./src/modules/net.ts");
 /** @internal */
 exports.hooks = {
     fromDriver: async () => { },
-    toDriver: toDriver,
 };
-async function toDriver(reqId, m) {
-    if (ArrayBuffer.isView(reqId)) {
-        net_1.socket.sendUint8ArrayToDriver(reqId);
-    }
-    else {
-        net_1.socket.sendMessageToDriver(reqId, m);
-    }
-    return;
-}
 /** @public */
 async function setupHook(userHooks) {
-    exports.hooks.fromDriver = userHooks.fromDriver.bind({ toDriver });
+    exports.hooks.fromDriver = userHooks.fromDriver;
     return exports.hooks;
 }
 exports.setupHook = setupHook;
@@ -25443,7 +25432,14 @@ class FakeSocket extends stream_1.Duplex {
         setTimeout(callback, 1);
     }
     push(outgoingDataBuffer) {
-        index_1.hooks.fromDriver(outgoingDataBuffer, parseMessage(outgoingDataBuffer));
+        index_1.hooks.fromDriver(async (reqId, m) => {
+            if (ArrayBuffer.isView(reqId)) {
+                this.sendUint8ArrayToDriver(reqId);
+            }
+            else {
+                this.sendMessageToDriver(reqId, m);
+            }
+        }, outgoingDataBuffer, parseMessage(outgoingDataBuffer));
     }
     sendMessageToDriver(requestId, message) {
         const bufferResponse = constructMessage(requestId, message);

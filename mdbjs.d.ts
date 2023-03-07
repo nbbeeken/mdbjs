@@ -5,10 +5,7 @@ export { BSON }
 
 /** @public */
 export declare type Hooks = {
-    fromDriver: (this: {
-        toDriver: Hooks['toDriver'];
-    }, b: Uint8Array, parsed: any) => Promise<void>;
-    toDriver: (reqId: number, m: any) => Promise<void>;
+    fromDriver: (sendToDriver: (reqId: number | Uint8Array, m: any) => Promise<void>, b: Uint8Array, parsed: any) => Promise<void>;
 };
 
 /* Excluded from this release type: hooks */

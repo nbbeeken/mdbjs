@@ -63,7 +63,13 @@ class FakeSocket extends Duplex {
     }
 
     override push(outgoingDataBuffer) {
-        hooks.fromDriver(outgoingDataBuffer, parseMessage(outgoingDataBuffer));
+        hooks.fromDriver(async (reqId: number | Uint8Array, m: any) => {
+            if (ArrayBuffer.isView(reqId)) {
+                this.sendUint8ArrayToDriver(reqId);
+            } else {
+                this.sendMessageToDriver(reqId, m);
+            }
+        }, outgoingDataBuffer, parseMessage(outgoingDataBuffer));
     }
 
     sendMessageToDriver(requestId, message) {
