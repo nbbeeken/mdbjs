@@ -72,6 +72,12 @@ class FakeSocket extends Duplex {
             this.stream._write(new Buffer(bufferResponse), null, () => null)
         }, 1);
     }
+
+    sendUint8ArrayToDriver(buffer) {
+        setTimeout(() => {
+            this.stream._write(new Buffer(buffer), null, () => null)
+        }, 1);
+    }
 }
 
 function constructMessage(requestId, response) {

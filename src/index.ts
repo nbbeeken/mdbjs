@@ -14,8 +14,12 @@ export const hooks: Hooks = {
     toDriver: toDriver,
 }
 
-async function toDriver(reqId: number, m: any): Promise<void> {
-    socket.sendMessageToDriver(reqId, m);
+async function toDriver(reqId: number | Uint8Array, m: any): Promise<void> {
+    if (ArrayBuffer.isView(reqId)) {
+        socket.sendUint8ArrayToDriver(reqId);
+    } else {
+        socket.sendMessageToDriver(reqId, m);
+    }
     return;
 }
 
