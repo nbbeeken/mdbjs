@@ -4,14 +4,12 @@ import { socket } from './modules/net';
 
 /** @public */
 export type Hooks = {
-    fromDriver: (this: { toDriver: Hooks['toDriver'] }, b: Uint8Array, parsed: any) => Promise<void>;
-    toDriver: (reqId: number, m: any) => Promise<void>;
+    fromDriver: (this: { toDriver: typeof toDriver }, b: Uint8Array, parsed: any) => Promise<void>;
 }
 
 /** @internal */
 export const hooks: Hooks = {
     fromDriver: async () => { },
-    toDriver: toDriver,
 }
 
 async function toDriver(reqId: number | Uint8Array, m: any): Promise<void> {
