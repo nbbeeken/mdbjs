@@ -951,176 +951,6 @@ ip.fromLong = function (ipl) {
 
 /***/ }),
 
-/***/ "./node_modules/memory-pager/index.js":
-/*!********************************************!*\
-  !*** ./node_modules/memory-pager/index.js ***!
-  \********************************************/
-/***/ ((module) => {
-
-module.exports = Pager
-
-function Pager (pageSize, opts) {
-  if (!(this instanceof Pager)) return new Pager(pageSize, opts)
-
-  this.length = 0
-  this.updates = []
-  this.path = new Uint16Array(4)
-  this.pages = new Array(32768)
-  this.maxPages = this.pages.length
-  this.level = 0
-  this.pageSize = pageSize || 1024
-  this.deduplicate = opts ? opts.deduplicate : null
-  this.zeros = this.deduplicate ? alloc(this.deduplicate.length) : null
-}
-
-Pager.prototype.updated = function (page) {
-  while (this.deduplicate && page.buffer[page.deduplicate] === this.deduplicate[page.deduplicate]) {
-    page.deduplicate++
-    if (page.deduplicate === this.deduplicate.length) {
-      page.deduplicate = 0
-      if (page.buffer.equals && page.buffer.equals(this.deduplicate)) page.buffer = this.deduplicate
-      break
-    }
-  }
-  if (page.updated || !this.updates) return
-  page.updated = true
-  this.updates.push(page)
-}
-
-Pager.prototype.lastUpdate = function () {
-  if (!this.updates || !this.updates.length) return null
-  var page = this.updates.pop()
-  page.updated = false
-  return page
-}
-
-Pager.prototype._array = function (i, noAllocate) {
-  if (i >= this.maxPages) {
-    if (noAllocate) return
-    grow(this, i)
-  }
-
-  factor(i, this.path)
-
-  var arr = this.pages
-
-  for (var j = this.level; j > 0; j--) {
-    var p = this.path[j]
-    var next = arr[p]
-
-    if (!next) {
-      if (noAllocate) return
-      next = arr[p] = new Array(32768)
-    }
-
-    arr = next
-  }
-
-  return arr
-}
-
-Pager.prototype.get = function (i, noAllocate) {
-  var arr = this._array(i, noAllocate)
-  var first = this.path[0]
-  var page = arr && arr[first]
-
-  if (!page && !noAllocate) {
-    page = arr[first] = new Page(i, alloc(this.pageSize))
-    if (i >= this.length) this.length = i + 1
-  }
-
-  if (page && page.buffer === this.deduplicate && this.deduplicate && !noAllocate) {
-    page.buffer = copy(page.buffer)
-    page.deduplicate = 0
-  }
-
-  return page
-}
-
-Pager.prototype.set = function (i, buf) {
-  var arr = this._array(i, false)
-  var first = this.path[0]
-
-  if (i >= this.length) this.length = i + 1
-
-  if (!buf || (this.zeros && buf.equals && buf.equals(this.zeros))) {
-    arr[first] = undefined
-    return
-  }
-
-  if (this.deduplicate && buf.equals && buf.equals(this.deduplicate)) {
-    buf = this.deduplicate
-  }
-
-  var page = arr[first]
-  var b = truncate(buf, this.pageSize)
-
-  if (page) page.buffer = b
-  else arr[first] = new Page(i, b)
-}
-
-Pager.prototype.toBuffer = function () {
-  var list = new Array(this.length)
-  var empty = alloc(this.pageSize)
-  var ptr = 0
-
-  while (ptr < list.length) {
-    var arr = this._array(ptr, true)
-    for (var i = 0; i < 32768 && ptr < list.length; i++) {
-      list[ptr++] = (arr && arr[i]) ? arr[i].buffer : empty
-    }
-  }
-
-  return Buffer.concat(list)
-}
-
-function grow (pager, index) {
-  while (pager.maxPages < index) {
-    var old = pager.pages
-    pager.pages = new Array(32768)
-    pager.pages[0] = old
-    pager.level++
-    pager.maxPages *= 32768
-  }
-}
-
-function truncate (buf, len) {
-  if (buf.length === len) return buf
-  if (buf.length > len) return buf.slice(0, len)
-  var cpy = alloc(len)
-  buf.copy(cpy)
-  return cpy
-}
-
-function alloc (size) {
-  if (Buffer.alloc) return Buffer.alloc(size)
-  var buf = new Buffer(size)
-  buf.fill(0)
-  return buf
-}
-
-function copy (buf) {
-  var cpy = Buffer.allocUnsafe ? Buffer.allocUnsafe(buf.length) : new Buffer(buf.length)
-  buf.copy(cpy)
-  return cpy
-}
-
-function Page (i, buf) {
-  this.offset = i * buf.length
-  this.buffer = buf
-  this.updated = false
-  this.deduplicate = 0
-}
-
-function factor (n, out) {
-  n = (n - (out[0] = (n & 32767))) / 32768
-  n = (n - (out[1] = (n & 32767))) / 32768
-  out[3] = ((n - (out[2] = (n & 32767))) / 32768) & 32767
-}
-
-
-/***/ }),
-
 /***/ "./node_modules/mongodb-connection-string-url/lib/index.js":
 /*!*****************************************************************!*\
   !*** ./node_modules/mongodb-connection-string-url/lib/index.js ***!
@@ -2764,7 +2594,7 @@ class ChangeStream extends mongo_types_1.TypedEventEmitter {
      * @internal
      *
      * @param parent - The parent object that created this change stream
-     * @param pipeline - An array of {@link https://docs.mongodb.com/manual/reference/operator/aggregation-pipeline/|aggregation pipeline stages} through which to pass change stream documents
+     * @param pipeline - An array of {@link https://www.mongodb.com/docs/manual/reference/operator/aggregation-pipeline/|aggregation pipeline stages} through which to pass change stream documents
      */
     constructor(parent, pipeline = [], options = {}) {
         super();
@@ -3179,6 +3009,7 @@ exports.AuthProvider = AuthProvider;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.resolveCname = exports.performGSSAPICanonicalizeHostName = exports.GSSAPI = exports.GSSAPICanonicalizationValue = void 0;
 const dns = __webpack_require__(/*! dns */ "?cd14");
+const process = __webpack_require__(/*! process */ "./src/modules/process.ts");
 const deps_1 = __webpack_require__(/*! ../../deps */ "./node_modules/mongodb/lib/deps.js");
 const error_1 = __webpack_require__(/*! ../../error */ "./node_modules/mongodb/lib/error.js");
 const utils_1 = __webpack_require__(/*! ../../utils */ "./node_modules/mongodb/lib/utils.js");
@@ -3376,6 +3207,8 @@ exports.resolveCname = resolveCname;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.MongoCredentials = void 0;
+// Resolves the default auth mechanism according to
+const process = __webpack_require__(/*! process */ "./src/modules/process.ts");
 const error_1 = __webpack_require__(/*! ../../error */ "./node_modules/mongodb/lib/error.js");
 const gssapi_1 = __webpack_require__(/*! ./gssapi */ "./node_modules/mongodb/lib/cmap/auth/gssapi.js");
 const providers_1 = __webpack_require__(/*! ./providers */ "./node_modules/mongodb/lib/cmap/auth/providers.js");
@@ -3465,22 +3298,20 @@ class MongoCredentials {
             throw new error_1.MongoMissingCredentialsError(`Username required for mechanism '${this.mechanism}'`);
         }
         if (this.mechanism === providers_1.AuthMechanism.MONGODB_OIDC) {
-            if (this.username) {
-                throw new error_1.MongoInvalidArgumentError(`Username not permitted for mechanism '${this.mechanism}'. Use PRINCIPAL_NAME instead.`);
+            if (this.username && this.mechanismProperties.PROVIDER_NAME) {
+                throw new error_1.MongoInvalidArgumentError(`username and PROVIDER_NAME may not be used together for mechanism '${this.mechanism}'.`);
             }
-            if (this.mechanismProperties.PRINCIPAL_NAME && this.mechanismProperties.DEVICE_NAME) {
-                throw new error_1.MongoInvalidArgumentError(`PRINCIPAL_NAME and DEVICE_NAME may not be used together for mechanism '${this.mechanism}'.`);
-            }
-            if (this.mechanismProperties.DEVICE_NAME && this.mechanismProperties.DEVICE_NAME !== 'aws') {
-                throw new error_1.MongoInvalidArgumentError(`Currently only a DEVICE_NAME of 'aws' is supported for mechanism '${this.mechanism}'.`);
+            if (this.mechanismProperties.PROVIDER_NAME &&
+                this.mechanismProperties.PROVIDER_NAME !== 'aws') {
+                throw new error_1.MongoInvalidArgumentError(`Currently only a PROVIDER_NAME of 'aws' is supported for mechanism '${this.mechanism}'.`);
             }
             if (this.mechanismProperties.REFRESH_TOKEN_CALLBACK &&
                 !this.mechanismProperties.REQUEST_TOKEN_CALLBACK) {
                 throw new error_1.MongoInvalidArgumentError(`A REQUEST_TOKEN_CALLBACK must be provided when using a REFRESH_TOKEN_CALLBACK for mechanism '${this.mechanism}'`);
             }
-            if (!this.mechanismProperties.DEVICE_NAME &&
+            if (!this.mechanismProperties.PROVIDER_NAME &&
                 !this.mechanismProperties.REQUEST_TOKEN_CALLBACK) {
-                throw new error_1.MongoInvalidArgumentError(`Either a DEVICE_NAME or a REQUEST_TOKEN_CALLBACK must be specified for mechanism '${this.mechanism}'.`);
+                throw new error_1.MongoInvalidArgumentError(`Either a PROVIDER_NAME or a REQUEST_TOKEN_CALLBACK must be specified for mechanism '${this.mechanism}'.`);
             }
         }
         if (providers_1.AUTH_MECHS_AUTH_SRC_EXTERNAL.has(this.mechanism)) {
@@ -3587,6 +3418,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.MongoDBAWS = void 0;
 const crypto = __webpack_require__(/*! crypto */ "./src/modules/crypto.ts");
 const http = __webpack_require__(/*! http */ "?17a0");
+const process = __webpack_require__(/*! process */ "./src/modules/process.ts");
 const url = __webpack_require__(/*! url */ "./src/modules/url.ts");
 const BSON = __webpack_require__(/*! ../../bson */ "./node_modules/mongodb/lib/bson.js");
 const deps_1 = __webpack_require__(/*! ../../deps */ "./node_modules/mongodb/lib/deps.js");
@@ -3823,6 +3655,501 @@ function request(uri, _options, callback) {
 
 /***/ }),
 
+/***/ "./node_modules/mongodb/lib/cmap/auth/mongodb_oidc.js":
+/*!************************************************************!*\
+  !*** ./node_modules/mongodb/lib/cmap/auth/mongodb_oidc.js ***!
+  \************************************************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.MongoDBOIDC = exports.OIDC_WORKFLOWS = void 0;
+const error_1 = __webpack_require__(/*! ../../error */ "./node_modules/mongodb/lib/error.js");
+const auth_provider_1 = __webpack_require__(/*! ./auth_provider */ "./node_modules/mongodb/lib/cmap/auth/auth_provider.js");
+const aws_service_workflow_1 = __webpack_require__(/*! ./mongodb_oidc/aws_service_workflow */ "./node_modules/mongodb/lib/cmap/auth/mongodb_oidc/aws_service_workflow.js");
+const callback_workflow_1 = __webpack_require__(/*! ./mongodb_oidc/callback_workflow */ "./node_modules/mongodb/lib/cmap/auth/mongodb_oidc/callback_workflow.js");
+/** @internal */
+exports.OIDC_WORKFLOWS = new Map();
+exports.OIDC_WORKFLOWS.set('callback', new callback_workflow_1.CallbackWorkflow());
+exports.OIDC_WORKFLOWS.set('aws', new aws_service_workflow_1.AwsServiceWorkflow());
+/**
+ * OIDC auth provider.
+ */
+class MongoDBOIDC extends auth_provider_1.AuthProvider {
+    /**
+     * Instantiate the auth provider.
+     */
+    constructor() {
+        super();
+    }
+    /**
+     * Authenticate using OIDC
+     */
+    auth(authContext, callback) {
+        const { connection, credentials, response } = authContext;
+        if (response?.speculativeAuthenticate) {
+            return callback();
+        }
+        if (!credentials) {
+            return callback(new error_1.MongoMissingCredentialsError('AuthContext must provide credentials.'));
+        }
+        getWorkflow(credentials, (error, workflow) => {
+            if (error) {
+                return callback(error);
+            }
+            if (!workflow) {
+                return callback(new error_1.MongoRuntimeError(`Could not load workflow for device ${credentials.mechanismProperties.PROVIDER_NAME}`));
+            }
+            workflow.execute(connection, credentials).then(result => {
+                return callback(undefined, result);
+            }, error => {
+                callback(error);
+            });
+        });
+    }
+    /**
+     * Add the speculative auth for the initial handshake.
+     */
+    prepare(handshakeDoc, authContext, callback) {
+        const { credentials } = authContext;
+        if (!credentials) {
+            return callback(new error_1.MongoMissingCredentialsError('AuthContext must provide credentials.'));
+        }
+        getWorkflow(credentials, (error, workflow) => {
+            if (error) {
+                return callback(error);
+            }
+            if (!workflow) {
+                return callback(new error_1.MongoRuntimeError(`Could not load workflow for provider ${credentials.mechanismProperties.PROVIDER_NAME}`));
+            }
+            workflow.speculativeAuth().then(result => {
+                return callback(undefined, { ...handshakeDoc, ...result });
+            }, error => {
+                callback(error);
+            });
+        });
+    }
+}
+exports.MongoDBOIDC = MongoDBOIDC;
+/**
+ * Gets either a device workflow or callback workflow.
+ */
+function getWorkflow(credentials, callback) {
+    const providerName = credentials.mechanismProperties.PROVIDER_NAME;
+    const workflow = exports.OIDC_WORKFLOWS.get(providerName || 'callback');
+    if (!workflow) {
+        return callback(new error_1.MongoInvalidArgumentError(`Could not load workflow for provider ${credentials.mechanismProperties.PROVIDER_NAME}`));
+    }
+    callback(undefined, workflow);
+}
+//# sourceMappingURL=mongodb_oidc.js.map
+
+/***/ }),
+
+/***/ "./node_modules/mongodb/lib/cmap/auth/mongodb_oidc/aws_service_workflow.js":
+/*!*********************************************************************************!*\
+  !*** ./node_modules/mongodb/lib/cmap/auth/mongodb_oidc/aws_service_workflow.js ***!
+  \*********************************************************************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AwsServiceWorkflow = void 0;
+const promises_1 = __webpack_require__(/*! fs/promises */ "?594c");
+const process = __webpack_require__(/*! process */ "./src/modules/process.ts");
+const error_1 = __webpack_require__(/*! ../../../error */ "./node_modules/mongodb/lib/error.js");
+const service_workflow_1 = __webpack_require__(/*! ./service_workflow */ "./node_modules/mongodb/lib/cmap/auth/mongodb_oidc/service_workflow.js");
+/**
+ * Device workflow implementation for AWS.
+ *
+ * @internal
+ */
+class AwsServiceWorkflow extends service_workflow_1.ServiceWorkflow {
+    constructor() {
+        super();
+    }
+    /**
+     * Get the token from the environment.
+     */
+    async getToken() {
+        const tokenFile = process.env.AWS_WEB_IDENTITY_TOKEN_FILE;
+        if (!tokenFile) {
+            throw new error_1.MongoAWSError('AWS_WEB_IDENTITY_TOKEN_FILE must be set in the environment.');
+        }
+        return (0, promises_1.readFile)(tokenFile, 'utf8');
+    }
+}
+exports.AwsServiceWorkflow = AwsServiceWorkflow;
+//# sourceMappingURL=aws_service_workflow.js.map
+
+/***/ }),
+
+/***/ "./node_modules/mongodb/lib/cmap/auth/mongodb_oidc/callback_workflow.js":
+/*!******************************************************************************!*\
+  !*** ./node_modules/mongodb/lib/cmap/auth/mongodb_oidc/callback_workflow.js ***!
+  \******************************************************************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.CallbackWorkflow = void 0;
+const bson_1 = __webpack_require__(/*! bson */ "./node_modules/bson/lib/bson.cjs");
+const error_1 = __webpack_require__(/*! ../../../error */ "./node_modules/mongodb/lib/error.js");
+const utils_1 = __webpack_require__(/*! ../../../utils */ "./node_modules/mongodb/lib/utils.js");
+const providers_1 = __webpack_require__(/*! ../providers */ "./node_modules/mongodb/lib/cmap/auth/providers.js");
+const token_entry_cache_1 = __webpack_require__(/*! ./token_entry_cache */ "./node_modules/mongodb/lib/cmap/auth/mongodb_oidc/token_entry_cache.js");
+/* 5 minutes in milliseconds */
+const TIMEOUT_MS = 300000;
+/**
+ * OIDC implementation of a callback based workflow.
+ * @internal
+ */
+class CallbackWorkflow {
+    /**
+     * Instantiate the workflow
+     */
+    constructor() {
+        this.cache = new token_entry_cache_1.TokenEntryCache();
+    }
+    /**
+     * Get the document to add for speculative authentication. Is empty when
+     * callbacks are in play.
+     */
+    speculativeAuth() {
+        return Promise.resolve({});
+    }
+    /**
+     * Execute the workflow.
+     *
+     * Steps:
+     * - If an entry is in the cache
+     *   - If it is not expired
+     *     - Skip step one and use the entry to execute step two.
+     *   - If it is expired
+     *     - If the refresh callback exists
+     *       - remove expired entry from cache
+     *       - call the refresh callback.
+     *       - put the new entry in the cache.
+     *       - execute step two.
+     *     - If the refresh callback does not exist.
+     *       - remove expired entry from cache
+     *       - call the request callback.
+     *       - put the new entry in the cache.
+     *       - execute step two.
+     * - If no entry is in the cache.
+     *   - execute step one.
+     *   - call the refresh callback.
+     *   - put the new entry in the cache.
+     *   - execute step two.
+     */
+    async execute(connection, credentials) {
+        const request = credentials.mechanismProperties.REQUEST_TOKEN_CALLBACK;
+        const refresh = credentials.mechanismProperties.REFRESH_TOKEN_CALLBACK;
+        const entry = this.cache.getEntry(connection.address, credentials.username, request || null, refresh || null);
+        if (entry) {
+            // Check if the entry is not expired.
+            if (entry.isValid()) {
+                // Skip step one and execute the step two saslContinue.
+                try {
+                    const result = await finishAuth(entry.tokenResult, undefined, connection, credentials);
+                    return result;
+                }
+                catch (error) {
+                    // If authentication errors when using a cached token we remove it from
+                    // the cache.
+                    this.cache.deleteEntry(connection.address, credentials.username || '', request || null, refresh || null);
+                    throw error;
+                }
+            }
+            else {
+                // Remove the expired entry from the cache.
+                this.cache.deleteEntry(connection.address, credentials.username || '', request || null, refresh || null);
+                // Execute a refresh of the token and finish auth.
+                return this.refreshAndFinish(connection, credentials, entry.serverResult, entry.tokenResult);
+            }
+        }
+        else {
+            // No entry means to start with the step one saslStart.
+            const result = await connection.commandAsync((0, utils_1.ns)(credentials.source), startCommandDocument(credentials), undefined);
+            const stepOne = bson_1.BSON.deserialize(result.payload.buffer);
+            // Call the request callback and finish auth.
+            return this.requestAndFinish(connection, credentials, stepOne, result.conversationId);
+        }
+    }
+    /**
+     * Execute the refresh callback if it exists, otherwise the request callback, then
+     * finish the authentication.
+     */
+    async refreshAndFinish(connection, credentials, stepOneResult, tokenResult, conversationId) {
+        const request = credentials.mechanismProperties.REQUEST_TOKEN_CALLBACK;
+        const refresh = credentials.mechanismProperties.REFRESH_TOKEN_CALLBACK;
+        // If a refresh callback exists, use it. Otherwise use the request callback.
+        if (refresh) {
+            const result = await refresh(credentials.username, stepOneResult, tokenResult, TIMEOUT_MS);
+            // Validate the result.
+            if (!result || !result.accessToken) {
+                throw new error_1.MongoMissingCredentialsError('REFRESH_TOKEN_CALLBACK must return a valid object with an accessToken');
+            }
+            // Cache a new entry and continue with the saslContinue.
+            this.cache.addEntry(connection.address, credentials.username || '', request || null, refresh, result, stepOneResult);
+            return finishAuth(result, conversationId, connection, credentials);
+        }
+        else {
+            // Fallback to using the request callback.
+            return this.requestAndFinish(connection, credentials, stepOneResult, conversationId);
+        }
+    }
+    /**
+     * Execute the request callback and finish authentication.
+     */
+    async requestAndFinish(connection, credentials, stepOneResult, conversationId) {
+        // Call the request callback.
+        const request = credentials.mechanismProperties.REQUEST_TOKEN_CALLBACK;
+        const refresh = credentials.mechanismProperties.REFRESH_TOKEN_CALLBACK;
+        // Always clear expired entries from the cache on each finish as cleanup.
+        this.cache.deleteExpiredEntries();
+        if (!request) {
+            // Request callback must be present.
+            throw new error_1.MongoInvalidArgumentError('Auth mechanism property REQUEST_TOKEN_CALLBACK is required.');
+        }
+        const tokenResult = await request(credentials.username, stepOneResult, TIMEOUT_MS);
+        // Validate the result.
+        if (!tokenResult || !tokenResult.accessToken) {
+            throw new error_1.MongoMissingCredentialsError('REQUEST_TOKEN_CALLBACK must return a valid object with an accessToken');
+        }
+        // Cache a new entry and continue with the saslContinue.
+        this.cache.addEntry(connection.address, credentials.username || '', request, refresh || null, tokenResult, stepOneResult);
+        return finishAuth(tokenResult, conversationId, connection, credentials);
+    }
+}
+exports.CallbackWorkflow = CallbackWorkflow;
+/**
+ * Cache the result of the user supplied callback and execute the
+ * step two saslContinue.
+ */
+async function finishAuth(result, conversationId, connection, credentials) {
+    // Execute the step two saslContinue.
+    return connection.commandAsync((0, utils_1.ns)(credentials.source), continueCommandDocument(result.accessToken, conversationId), undefined);
+}
+/**
+ * Generate the saslStart command document.
+ */
+function startCommandDocument(credentials) {
+    const payload = {};
+    if (credentials.username) {
+        payload.n = credentials.username;
+    }
+    return {
+        saslStart: 1,
+        autoAuthorize: 1,
+        mechanism: providers_1.AuthMechanism.MONGODB_OIDC,
+        payload: new bson_1.Binary(bson_1.BSON.serialize(payload))
+    };
+}
+/**
+ * Generate the saslContinue command document.
+ */
+function continueCommandDocument(token, conversationId) {
+    if (conversationId) {
+        return {
+            saslContinue: 1,
+            conversationId: conversationId,
+            payload: new bson_1.Binary(bson_1.BSON.serialize({ jwt: token }))
+        };
+    }
+    // saslContinue requires a conversationId in the command to be valid so in this
+    // case the server allows "step two" to actually be a saslStart with the token
+    // as the jwt since the use of the cached value has no correlating conversating
+    // on the particular connection.
+    return {
+        saslStart: 1,
+        mechanism: providers_1.AuthMechanism.MONGODB_OIDC,
+        payload: new bson_1.Binary(bson_1.BSON.serialize({ jwt: token }))
+    };
+}
+//# sourceMappingURL=callback_workflow.js.map
+
+/***/ }),
+
+/***/ "./node_modules/mongodb/lib/cmap/auth/mongodb_oidc/service_workflow.js":
+/*!*****************************************************************************!*\
+  !*** ./node_modules/mongodb/lib/cmap/auth/mongodb_oidc/service_workflow.js ***!
+  \*****************************************************************************/
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.commandDocument = exports.ServiceWorkflow = void 0;
+const bson_1 = __webpack_require__(/*! bson */ "./node_modules/bson/lib/bson.cjs");
+const utils_1 = __webpack_require__(/*! ../../../utils */ "./node_modules/mongodb/lib/utils.js");
+const providers_1 = __webpack_require__(/*! ../providers */ "./node_modules/mongodb/lib/cmap/auth/providers.js");
+/**
+ * Common behaviour for OIDC device workflows.
+ * @internal
+ */
+class ServiceWorkflow {
+    /**
+     * Execute the workflow. Looks for AWS_WEB_IDENTITY_TOKEN_FILE in the environment
+     * and then attempts to read the token from that path.
+     */
+    async execute(connection, credentials) {
+        const token = await this.getToken();
+        const command = commandDocument(token);
+        return connection.commandAsync((0, utils_1.ns)(credentials.source), command, undefined);
+    }
+    /**
+     * Get the document to add for speculative authentication.
+     */
+    async speculativeAuth() {
+        const token = await this.getToken();
+        return { speculativeAuthenticate: commandDocument(token) };
+    }
+}
+exports.ServiceWorkflow = ServiceWorkflow;
+/**
+ * Create the saslStart command document.
+ */
+function commandDocument(token) {
+    return {
+        saslStart: 1,
+        mechanism: providers_1.AuthMechanism.MONGODB_OIDC,
+        payload: bson_1.BSON.serialize({ jwt: token })
+    };
+}
+exports.commandDocument = commandDocument;
+//# sourceMappingURL=service_workflow.js.map
+
+/***/ }),
+
+/***/ "./node_modules/mongodb/lib/cmap/auth/mongodb_oidc/token_entry_cache.js":
+/*!******************************************************************************!*\
+  !*** ./node_modules/mongodb/lib/cmap/auth/mongodb_oidc/token_entry_cache.js ***!
+  \******************************************************************************/
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TokenEntryCache = exports.TokenEntry = void 0;
+/* 5 minutes in milliseonds */
+const EXPIRATION_BUFFER_MS = 300000;
+/* Default expiration is now for when no expiration provided */
+const DEFAULT_EXPIRATION_SECS = 0;
+/* Counter for function "hashes".*/
+let FN_HASH_COUNTER = 0;
+/* No function present function */
+const NO_FUNCTION = () => {
+    return Promise.resolve({ accessToken: 'test' });
+};
+/* The map of function hashes */
+const FN_HASHES = new WeakMap();
+/* Put the no function hash in the map. */
+FN_HASHES.set(NO_FUNCTION, FN_HASH_COUNTER);
+/** @internal */
+class TokenEntry {
+    /**
+     * Instantiate the entry.
+     */
+    constructor(tokenResult, serverResult, expiration) {
+        this.tokenResult = tokenResult;
+        this.serverResult = serverResult;
+        this.expiration = expiration;
+    }
+    /**
+     * The entry is still valid if the expiration is more than
+     * 5 minutes from the expiration time.
+     */
+    isValid() {
+        return this.expiration - Date.now() > EXPIRATION_BUFFER_MS;
+    }
+}
+exports.TokenEntry = TokenEntry;
+/**
+ * Cache of OIDC token entries.
+ * @internal
+ */
+class TokenEntryCache {
+    constructor() {
+        this.entries = new Map();
+    }
+    /**
+     * Set an entry in the token cache.
+     */
+    addEntry(address, username, requestFn, refreshFn, tokenResult, serverResult) {
+        const entry = new TokenEntry(tokenResult, serverResult, expirationTime(tokenResult.expiresInSeconds));
+        this.entries.set(cacheKey(address, username, requestFn, refreshFn), entry);
+        return entry;
+    }
+    /**
+     * Clear the cache.
+     */
+    clear() {
+        this.entries.clear();
+    }
+    /**
+     * Delete an entry from the cache.
+     */
+    deleteEntry(address, username, requestFn, refreshFn) {
+        this.entries.delete(cacheKey(address, username, requestFn, refreshFn));
+    }
+    /**
+     * Get an entry from the cache.
+     */
+    getEntry(address, username, requestFn, refreshFn) {
+        return this.entries.get(cacheKey(address, username, requestFn, refreshFn));
+    }
+    /**
+     * Delete all expired entries from the cache.
+     */
+    deleteExpiredEntries() {
+        for (const [key, entry] of this.entries) {
+            if (!entry.isValid()) {
+                this.entries.delete(key);
+            }
+        }
+    }
+}
+exports.TokenEntryCache = TokenEntryCache;
+/**
+ * Get an expiration time in milliseconds past epoch. Defaults to immediate.
+ */
+function expirationTime(expiresInSeconds) {
+    return Date.now() + (expiresInSeconds ?? DEFAULT_EXPIRATION_SECS) * 1000;
+}
+/**
+ * Create a cache key from the address and username.
+ */
+function cacheKey(address, username, requestFn, refreshFn) {
+    return `${address}-${username}-${hashFunctions(requestFn, refreshFn)}`;
+}
+/**
+ * Get the hash string for the request and refresh functions.
+ */
+function hashFunctions(requestFn, refreshFn) {
+    let requestHash = FN_HASHES.get(requestFn || NO_FUNCTION);
+    let refreshHash = FN_HASHES.get(refreshFn || NO_FUNCTION);
+    if (!requestHash && requestFn) {
+        // Create a new one for the function and put it in the map.
+        FN_HASH_COUNTER++;
+        requestHash = FN_HASH_COUNTER;
+        FN_HASHES.set(requestFn, FN_HASH_COUNTER);
+    }
+    if (!refreshHash && refreshFn) {
+        // Create a new one for the function and put it in the map.
+        FN_HASH_COUNTER++;
+        refreshHash = FN_HASH_COUNTER;
+        FN_HASHES.set(refreshFn, FN_HASH_COUNTER);
+    }
+    return `${requestHash}-${refreshHash}`;
+}
+//# sourceMappingURL=token_entry_cache.js.map
+
+/***/ }),
+
 /***/ "./node_modules/mongodb/lib/cmap/auth/plain.js":
 /*!*****************************************************!*\
   !*** ./node_modules/mongodb/lib/cmap/auth/plain.js ***!
@@ -3833,6 +4160,7 @@ function request(uri, _options, callback) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Plain = void 0;
+const buffer_1 = __webpack_require__(/*! buffer */ "./src/modules/buffer.ts");
 const bson_1 = __webpack_require__(/*! ../../bson */ "./node_modules/mongodb/lib/bson.js");
 const error_1 = __webpack_require__(/*! ../../error */ "./node_modules/mongodb/lib/error.js");
 const utils_1 = __webpack_require__(/*! ../../utils */ "./node_modules/mongodb/lib/utils.js");
@@ -3845,7 +4173,7 @@ class Plain extends auth_provider_1.AuthProvider {
         }
         const username = credentials.username;
         const password = credentials.password;
-        const payload = new bson_1.Binary(Buffer.from(`\x00${username}\x00${password}`));
+        const payload = new bson_1.Binary(buffer_1.Buffer.from(`\x00${username}\x00${password}`));
         const command = {
             saslStart: 1,
             mechanism: 'PLAIN',
@@ -3880,7 +4208,6 @@ exports.AuthMechanism = Object.freeze({
     MONGODB_SCRAM_SHA1: 'SCRAM-SHA-1',
     MONGODB_SCRAM_SHA256: 'SCRAM-SHA-256',
     MONGODB_X509: 'MONGODB-X509',
-    /** @internal TODO: NODE-5035: Make mechanism public. */
     MONGODB_OIDC: 'MONGODB-OIDC'
 });
 /** @internal */
@@ -3904,6 +4231,7 @@ exports.AUTH_MECHS_AUTH_SRC_EXTERNAL = new Set([
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ScramSHA256 = exports.ScramSHA1 = void 0;
+const buffer_1 = __webpack_require__(/*! buffer */ "./src/modules/buffer.ts");
 const crypto = __webpack_require__(/*! crypto */ "./src/modules/crypto.ts");
 const bson_1 = __webpack_require__(/*! ../../bson */ "./node_modules/mongodb/lib/bson.js");
 const deps_1 = __webpack_require__(/*! ../../deps */ "./node_modules/mongodb/lib/deps.js");
@@ -3954,11 +4282,11 @@ function cleanUsername(username) {
 function clientFirstMessageBare(username, nonce) {
     // NOTE: This is done b/c Javascript uses UTF-16, but the server is hashing in UTF-8.
     // Since the username is not sasl-prep-d, we need to do this here.
-    return Buffer.concat([
-        Buffer.from('n=', 'utf8'),
-        Buffer.from(username, 'utf8'),
-        Buffer.from(',r=', 'utf8'),
-        Buffer.from(nonce.toString('base64'), 'utf8')
+    return buffer_1.Buffer.concat([
+        buffer_1.Buffer.from('n=', 'utf8'),
+        buffer_1.Buffer.from(username, 'utf8'),
+        buffer_1.Buffer.from(',r=', 'utf8'),
+        buffer_1.Buffer.from(nonce.toString('base64'), 'utf8')
     ]);
 }
 function makeFirstMessage(cryptoMethod, credentials, nonce) {
@@ -3969,7 +4297,7 @@ function makeFirstMessage(cryptoMethod, credentials, nonce) {
     return {
         saslStart: 1,
         mechanism,
-        payload: new bson_1.Binary(Buffer.concat([Buffer.from('n,,', 'utf8'), clientFirstMessageBare(username, nonce)])),
+        payload: new bson_1.Binary(buffer_1.Buffer.concat([buffer_1.Buffer.from('n,,', 'utf8'), clientFirstMessageBare(username, nonce)])),
         autoAuthorize: 1,
         options: { skipEmptyExchange: true }
     };
@@ -4018,7 +4346,7 @@ function continueScramConversation(cryptoMethod, response, authContext, callback
             return callback(e);
         }
     }
-    const payload = Buffer.isBuffer(response.payload)
+    const payload = buffer_1.Buffer.isBuffer(response.payload)
         ? new bson_1.Binary(response.payload)
         : response.payload;
     const dict = parsePayload(payload.value());
@@ -4038,7 +4366,7 @@ function continueScramConversation(cryptoMethod, response, authContext, callback
     }
     // Set up start of proof
     const withoutProof = `c=biws,r=${rnonce}`;
-    const saltedPassword = HI(processedPassword, Buffer.from(salt, 'base64'), iterations, cryptoMethod);
+    const saltedPassword = HI(processedPassword, buffer_1.Buffer.from(salt, 'base64'), iterations, cryptoMethod);
     const clientKey = HMAC(cryptoMethod, saltedPassword, 'Client Key');
     const serverKey = HMAC(cryptoMethod, saltedPassword, 'Server Key');
     const storedKey = H(cryptoMethod, clientKey);
@@ -4050,7 +4378,7 @@ function continueScramConversation(cryptoMethod, response, authContext, callback
     const saslContinueCmd = {
         saslContinue: 1,
         conversationId: response.conversationId,
-        payload: new bson_1.Binary(Buffer.from(clientFinal))
+        payload: new bson_1.Binary(buffer_1.Buffer.from(clientFinal))
     };
     connection.command((0, utils_1.ns)(`${db}.$cmd`), saslContinueCmd, undefined, (_err, r) => {
         const err = resolveError(_err, r);
@@ -4058,7 +4386,7 @@ function continueScramConversation(cryptoMethod, response, authContext, callback
             return callback(err);
         }
         const parsedResponse = parsePayload(r.payload.value());
-        if (!compareDigest(Buffer.from(parsedResponse.v, 'base64'), serverSignature)) {
+        if (!compareDigest(buffer_1.Buffer.from(parsedResponse.v, 'base64'), serverSignature)) {
             callback(new error_1.MongoRuntimeError('Server returned an invalid signature'));
             return;
         }
@@ -4068,7 +4396,7 @@ function continueScramConversation(cryptoMethod, response, authContext, callback
         const retrySaslContinueCmd = {
             saslContinue: 1,
             conversationId: r.conversationId,
-            payload: Buffer.alloc(0)
+            payload: buffer_1.Buffer.alloc(0)
         };
         connection.command((0, utils_1.ns)(`${db}.$cmd`), retrySaslContinueCmd, undefined, callback);
     });
@@ -4109,18 +4437,18 @@ function passwordDigest(username, password) {
 }
 // XOR two buffers
 function xor(a, b) {
-    if (!Buffer.isBuffer(a)) {
-        a = Buffer.from(a);
+    if (!buffer_1.Buffer.isBuffer(a)) {
+        a = buffer_1.Buffer.from(a);
     }
-    if (!Buffer.isBuffer(b)) {
-        b = Buffer.from(b);
+    if (!buffer_1.Buffer.isBuffer(b)) {
+        b = buffer_1.Buffer.from(b);
     }
     const length = Math.max(a.length, b.length);
     const res = [];
     for (let i = 0; i < length; i += 1) {
         res.push(a[i] ^ b[i]);
     }
-    return Buffer.from(res).toString('base64');
+    return buffer_1.Buffer.from(res).toString('base64');
 }
 function H(method, text) {
     return crypto.createHash(method).update(text).digest();
@@ -4250,7 +4578,7 @@ function x509AuthenticateCommand(credentials) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.CommandFailedEvent = exports.CommandSucceededEvent = exports.CommandStartedEvent = void 0;
+exports.SENSITIVE_COMMANDS = exports.CommandFailedEvent = exports.CommandSucceededEvent = exports.CommandStartedEvent = void 0;
 const constants_1 = __webpack_require__(/*! ../constants */ "./node_modules/mongodb/lib/constants.js");
 const utils_1 = __webpack_require__(/*! ../utils */ "./node_modules/mongodb/lib/utils.js");
 const commands_1 = __webpack_require__(/*! ./commands */ "./node_modules/mongodb/lib/cmap/commands.js");
@@ -4272,7 +4600,7 @@ class CommandStartedEvent {
         const commandName = extractCommandName(cmd);
         const { address, connectionId, serviceId } = extractConnectionDetails(connection);
         // TODO: remove in major revision, this is not spec behavior
-        if (SENSITIVE_COMMANDS.has(commandName)) {
+        if (exports.SENSITIVE_COMMANDS.has(commandName)) {
             this.commandObj = {};
             this.commandObj[commandName] = true;
         }
@@ -4356,8 +4684,11 @@ class CommandFailedEvent {
     }
 }
 exports.CommandFailedEvent = CommandFailedEvent;
-/** Commands that we want to redact because of the sensitive nature of their contents */
-const SENSITIVE_COMMANDS = new Set([
+/**
+ * Commands that we want to redact because of the sensitive nature of their contents
+ * @internal
+ */
+exports.SENSITIVE_COMMANDS = new Set([
     'authenticate',
     'saslStart',
     'saslContinue',
@@ -4374,7 +4705,7 @@ const extractCommandName = (commandDoc) => Object.keys(commandDoc)[0];
 const namespace = (command) => command.ns;
 const databaseName = (command) => command.ns.split('.')[0];
 const collectionName = (command) => command.ns.split('.')[1];
-const maybeRedact = (commandName, commandDoc, result) => SENSITIVE_COMMANDS.has(commandName) ||
+const maybeRedact = (commandName, commandDoc, result) => exports.SENSITIVE_COMMANDS.has(commandName) ||
     (HELLO_COMMANDS.has(commandName) && commandDoc.speculativeAuthenticate)
     ? {}
     : result;
@@ -4503,6 +4834,7 @@ function extractConnectionDetails(connection) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BinMsg = exports.Msg = exports.Response = exports.Query = void 0;
+const buffer_1 = __webpack_require__(/*! buffer */ "./src/modules/buffer.ts");
 const BSON = __webpack_require__(/*! ../bson */ "./node_modules/mongodb/lib/bson.js");
 const error_1 = __webpack_require__(/*! ../error */ "./node_modules/mongodb/lib/error.js");
 const read_preference_1 = __webpack_require__(/*! ../read_preference */ "./node_modules/mongodb/lib/read_preference.js");
@@ -4611,9 +4943,9 @@ class Query {
         if (this.batchSize !== this.numberToReturn)
             this.numberToReturn = this.batchSize;
         // Allocate write protocol header buffer
-        const header = Buffer.alloc(4 * 4 + // Header
+        const header = buffer_1.Buffer.alloc(4 * 4 + // Header
             4 + // Flags
-            Buffer.byteLength(this.ns) +
+            buffer_1.Buffer.byteLength(this.ns) +
             1 + // namespace
             4 + // numberToSkip
             4 // numberToReturn
@@ -4746,7 +5078,7 @@ class Response {
             bsonRegExp
         };
         // Position within OP_REPLY at which documents start
-        // (See https://docs.mongodb.com/manual/reference/mongodb-wire-protocol/#wire-op-reply)
+        // (See https://www.mongodb.com/docs/manual/reference/mongodb-wire-protocol/#wire-op-reply)
         this.index = 20;
         // Read the message body
         this.responseFlags = this.data.readInt32LE(0);
@@ -4859,7 +5191,7 @@ class Msg {
         if (this.exhaustAllowed) {
             flags |= OPTS_EXHAUST_ALLOWED;
         }
-        const header = Buffer.alloc(4 * 4 + // Header
+        const header = buffer_1.Buffer.alloc(4 * 4 + // Header
             4 // Flags
         );
         buffers.push(header);
@@ -4874,7 +5206,7 @@ class Msg {
         return buffers;
     }
     makeDocumentSegment(buffers, document) {
-        const payloadTypeBuffer = Buffer.alloc(1);
+        const payloadTypeBuffer = buffer_1.Buffer.alloc(1);
         payloadTypeBuffer[0] = 0;
         const documentBuffer = this.serializeBson(document);
         buffers.push(payloadTypeBuffer);
@@ -5001,7 +5333,7 @@ exports.BinMsg = BinMsg;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.LEGAL_TCP_SOCKET_OPTIONS = exports.LEGAL_TLS_SOCKET_OPTIONS = exports.prepareHandshakeDocument = exports.connect = void 0;
 const net = __webpack_require__(/*! net */ "./src/modules/net.ts");
-const socks_1 = __webpack_require__(/*! socks */ "./node_modules/socks/build/index.js");
+const process = __webpack_require__(/*! process */ "./src/modules/process.ts");
 const tls = __webpack_require__(/*! tls */ "?869d");
 const bson_1 = __webpack_require__(/*! ../bson */ "./node_modules/mongodb/lib/bson.js");
 const constants_1 = __webpack_require__(/*! ../constants */ "./node_modules/mongodb/lib/constants.js");
@@ -5011,6 +5343,7 @@ const auth_provider_1 = __webpack_require__(/*! ./auth/auth_provider */ "./node_
 const gssapi_1 = __webpack_require__(/*! ./auth/gssapi */ "./node_modules/mongodb/lib/cmap/auth/gssapi.js");
 const mongocr_1 = __webpack_require__(/*! ./auth/mongocr */ "./node_modules/mongodb/lib/cmap/auth/mongocr.js");
 const mongodb_aws_1 = __webpack_require__(/*! ./auth/mongodb_aws */ "./node_modules/mongodb/lib/cmap/auth/mongodb_aws.js");
+const mongodb_oidc_1 = __webpack_require__(/*! ./auth/mongodb_oidc */ "./node_modules/mongodb/lib/cmap/auth/mongodb_oidc.js");
 const plain_1 = __webpack_require__(/*! ./auth/plain */ "./node_modules/mongodb/lib/cmap/auth/plain.js");
 const providers_1 = __webpack_require__(/*! ./auth/providers */ "./node_modules/mongodb/lib/cmap/auth/providers.js");
 const scram_1 = __webpack_require__(/*! ./auth/scram */ "./node_modules/mongodb/lib/cmap/auth/scram.js");
@@ -5021,6 +5354,7 @@ const AUTH_PROVIDERS = new Map([
     [providers_1.AuthMechanism.MONGODB_AWS, new mongodb_aws_1.MongoDBAWS()],
     [providers_1.AuthMechanism.MONGODB_CR, new mongocr_1.MongoCR()],
     [providers_1.AuthMechanism.MONGODB_GSSAPI, new gssapi_1.GSSAPI()],
+    [providers_1.AuthMechanism.MONGODB_OIDC, new mongodb_oidc_1.MongoDBOIDC()],
     [providers_1.AuthMechanism.MONGODB_PLAIN, new plain_1.Plain()],
     [providers_1.AuthMechanism.MONGODB_SCRAM_SHA1, new scram_1.ScramSHA1()],
     [providers_1.AuthMechanism.MONGODB_SCRAM_SHA256, new scram_1.ScramSHA256()],
@@ -5316,7 +5650,7 @@ function makeConnection(options, _callback) {
                 return callback(socket.authorizationError);
             }
         }
-        socket.setTimeout(socketTimeoutMS);
+        socket.setTimeout(0);
         callback(undefined, socket);
     }
     SOCKET_ERROR_EVENTS.forEach(event => socket.once(event, errorHandler(event)));
@@ -5348,8 +5682,18 @@ function makeSocks5Connection(options, callback) {
         if (typeof destination.host !== 'string' || typeof destination.port !== 'number') {
             return callback(new error_1.MongoInvalidArgumentError('Can only make Socks5 connections to TCP hosts'));
         }
+        let socks = null;
+        try {
+            socks = __webpack_require__(/*! socks */ "./node_modules/socks/build/index.js");
+        }
+        catch {
+            // ignore for webpack
+        }
+        if (socks == null) {
+            throw new error_1.MongoMissingDependencyError('you asked for socks, got cold feet?');
+        }
         // Then, establish the Socks5 proxy connection:
-        socks_1.SocksClient.createConnection({
+        socks.SocksClient.createConnection({
             existing_socket: rawSocket,
             timeout: options.connectTimeoutMS,
             command: 'connect',
@@ -5404,7 +5748,9 @@ function connectionFailureError(type, err) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.hasSessionSupport = exports.CryptoConnection = exports.Connection = void 0;
+const process = __webpack_require__(/*! process */ "./src/modules/process.ts");
 const timers_1 = __webpack_require__(/*! timers */ "./src/modules/timers.ts");
+const util_1 = __webpack_require__(/*! util */ "./src/modules/util.ts");
 const constants_1 = __webpack_require__(/*! ../constants */ "./node_modules/mongodb/lib/constants.js");
 const error_1 = __webpack_require__(/*! ../error */ "./node_modules/mongodb/lib/error.js");
 const mongo_types_1 = __webpack_require__(/*! ../mongo_types */ "./node_modules/mongodb/lib/mongo_types.js");
@@ -5440,6 +5786,7 @@ const INVALID_QUEUE_SIZE = 'Connection internal queue contains more than 1 opera
 class Connection extends mongo_types_1.TypedEventEmitter {
     constructor(stream, options) {
         super();
+        this.commandAsync = (0, util_1.promisify)((ns, cmd, options, callback) => this.command(ns, cmd, options, callback));
         this.id = options.id;
         this.address = streamIdentifier(stream, options);
         this.socketTimeoutMS = options.socketTimeoutMS ?? 0;
@@ -5534,6 +5881,8 @@ class Connection extends mongo_types_1.TypedEventEmitter {
             (0, timers_1.clearTimeout)(delayedTimeoutId);
             this[kDelayedTimeoutId] = null;
         }
+        const socketTimeoutMS = this[kStream].timeout ?? 0;
+        this[kStream].setTimeout(0);
         // always emit the message, in case we are streaming
         this.emit('message', message);
         let operationDescription = this[kQueue].get(message.responseTo);
@@ -5570,9 +5919,7 @@ class Connection extends mongo_types_1.TypedEventEmitter {
             // back in the queue with the correct requestId and will resolve not being able
             // to find the next one via the responseTo of the next streaming hello.
             this[kQueue].set(message.requestId, operationDescription);
-        }
-        else if (operationDescription.socketTimeoutOverride) {
-            this[kStream].setTimeout(this.socketTimeoutMS);
+            this[kStream].setTimeout(socketTimeoutMS);
         }
         try {
             // Pass in the entire description because it has BSON parsing options
@@ -5694,6 +6041,9 @@ class Connection extends mongo_types_1.TypedEventEmitter {
                 return callback(err);
             }
         }
+        else if (session?.explicit) {
+            return callback(new error_1.MongoCompatibilityError('Current topology does not support sessions'));
+        }
         // if we have a known cluster time, gossip it
         if (clusterTime) {
             finalCmd.$clusterTime = clusterTime;
@@ -5800,7 +6150,7 @@ exports.CryptoConnection = CryptoConnection;
 /** @internal */
 function hasSessionSupport(conn) {
     const description = conn.description;
-    return description.logicalSessionTimeoutMinutes != null || !!description.loadBalanced;
+    return description.logicalSessionTimeoutMinutes != null;
 }
 exports.hasSessionSupport = hasSessionSupport;
 function supportsOpMsg(conn) {
@@ -5848,8 +6198,10 @@ function write(conn, command, options, callback) {
         }
     }
     if (typeof options.socketTimeoutMS === 'number') {
-        operationDescription.socketTimeoutOverride = true;
         conn[kStream].setTimeout(options.socketTimeoutMS);
+    }
+    else if (conn.socketTimeoutMS !== 0) {
+        conn[kStream].setTimeout(conn.socketTimeoutMS);
     }
     // if command monitoring is enabled we need to modify the callback here
     if (conn.monitorCommands) {
@@ -5857,7 +6209,7 @@ function write(conn, command, options, callback) {
         operationDescription.started = (0, utils_1.now)();
         operationDescription.cb = (err, reply) => {
             // Command monitoring spec states that if ok is 1, then we must always emit
-            // a command suceeded event, even if there's an error. Write concern errors
+            // a command succeeded event, even if there's an error. Write concern errors
             // will have an ok: 1 in their reply.
             if (err && reply?.ok !== 1) {
                 conn.emit(Connection.COMMAND_FAILED, new command_monitoring_events_1.CommandFailedEvent(conn, command, err, operationDescription.started));
@@ -5910,6 +6262,7 @@ function write(conn, command, options, callback) {
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ConnectionPool = exports.PoolState = void 0;
+const process = __webpack_require__(/*! process */ "./src/modules/process.ts");
 const timers_1 = __webpack_require__(/*! timers */ "./src/modules/timers.ts");
 const constants_1 = __webpack_require__(/*! ../constants */ "./node_modules/mongodb/lib/constants.js");
 const error_1 = __webpack_require__(/*! ../error */ "./node_modules/mongodb/lib/error.js");
@@ -6755,6 +7108,7 @@ exports.WaitQueueTimeoutError = WaitQueueTimeoutError;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.MessageStream = void 0;
+const buffer_1 = __webpack_require__(/*! buffer */ "./src/modules/buffer.ts");
 const stream_1 = __webpack_require__(/*! stream */ "./src/modules/stream.ts");
 const error_1 = __webpack_require__(/*! ../error */ "./node_modules/mongodb/lib/error.js");
 const utils_1 = __webpack_require__(/*! ../utils */ "./node_modules/mongodb/lib/utils.js");
@@ -6795,11 +7149,11 @@ class MessageStream extends stream_1.Duplex {
         const agreedCompressor = operationDescription.agreedCompressor ?? 'none';
         if (agreedCompressor === 'none' || !canCompress(command)) {
             const data = command.toBin();
-            this.push(Array.isArray(data) ? Buffer.concat(data) : data);
+            this.push(Array.isArray(data) ? buffer_1.Buffer.concat(data) : data);
             return;
         }
         // otherwise, compress the message
-        const concatenatedOriginalCommandBuffer = Buffer.concat(command.toBin());
+        const concatenatedOriginalCommandBuffer = buffer_1.Buffer.concat(command.toBin());
         const messageToBeCompressed = concatenatedOriginalCommandBuffer.slice(MESSAGE_HEADER_SIZE);
         // Extract information needed for OP_COMPRESSED from the uncompressed message
         const originalCommandOpCode = concatenatedOriginalCommandBuffer.readInt32LE(12);
@@ -6810,17 +7164,17 @@ class MessageStream extends stream_1.Duplex {
         // Compress the message body
         (0, compression_1.compress)(options, messageToBeCompressed).then(compressedMessage => {
             // Create the msgHeader of OP_COMPRESSED
-            const msgHeader = Buffer.alloc(MESSAGE_HEADER_SIZE);
+            const msgHeader = buffer_1.Buffer.alloc(MESSAGE_HEADER_SIZE);
             msgHeader.writeInt32LE(MESSAGE_HEADER_SIZE + COMPRESSION_DETAILS_SIZE + compressedMessage.length, 0); // messageLength
             msgHeader.writeInt32LE(command.requestId, 4); // requestID
             msgHeader.writeInt32LE(0, 8); // responseTo (zero)
             msgHeader.writeInt32LE(constants_1.OP_COMPRESSED, 12); // opCode
             // Create the compression details of OP_COMPRESSED
-            const compressionDetails = Buffer.alloc(COMPRESSION_DETAILS_SIZE);
+            const compressionDetails = buffer_1.Buffer.alloc(COMPRESSION_DETAILS_SIZE);
             compressionDetails.writeInt32LE(originalCommandOpCode, 0); // originalOpcode
             compressionDetails.writeInt32LE(messageToBeCompressed.length, 4); // Size of the uncompressed compressedMessage, excluding the MsgHeader
             compressionDetails.writeUInt8(compression_1.Compressor[agreedCompressor], 8); // compressorID
-            this.push(Buffer.concat([msgHeader, compressionDetails, compressedMessage]));
+            this.push(buffer_1.Buffer.concat([msgHeader, compressionDetails, compressedMessage]));
         }, error => {
             operationDescription.cb(error);
         });
@@ -7079,10 +7433,9 @@ exports.uncompressibleCommands = new Set([
     'copydb'
 ]);
 const ZSTD_COMPRESSION_LEVEL = 3;
-const zlibInflate = (0, util_1.promisify)(zlib.inflate.bind(zlib));
-const zlibDeflate = (0, util_1.promisify)(zlib.deflate.bind(zlib));
 // Facilitate compressing a message using an agreed compressor
 async function compress(options, dataToBeCompressed) {
+    const zlibDeflate = (0, util_1.promisify)(zlib.deflate.bind(zlib));
     const zlibOptions = {};
     switch (options.agreedCompressor) {
         case 'snappy':
@@ -7113,6 +7466,7 @@ async function decompress(compressorID, compressedData) {
         compressorID !== exports.Compressor.none) {
         throw new error_1.MongoDecompressionError(`Server sent message compressed using an unsupported compressor. (Received compressor ID ${compressorID})`);
     }
+    const zlibInflate = (0, util_1.promisify)(zlib.inflate.bind(zlib));
     switch (compressorID) {
         case exports.Compressor.snappy:
             if ('kModuleError' in deps_1.Snappy) {
@@ -7545,7 +7899,7 @@ class Collection {
      * error.
      *
      * **Note**: Unlike {@link Collection#createIndex| createIndex}, this function takes in raw index specifications.
-     * Index specifications are defined {@link http://docs.mongodb.org/manual/reference/command/createIndexes/| here}.
+     * Index specifications are defined {@link https://www.mongodb.com/docs/manual/reference/command/createIndexes/| here}.
      *
      * @param indexSpecs - An array of index specifications to be created
      * @param options - Optional settings for the command
@@ -7646,18 +8000,18 @@ class Collection {
      * | `$near`    | [`$geoWithin`][2] with [`$center`][3] |
      * | `$nearSphere` | [`$geoWithin`][2] with [`$centerSphere`][4] |
      *
-     * [1]: https://docs.mongodb.com/manual/reference/operator/query/expr/
-     * [2]: https://docs.mongodb.com/manual/reference/operator/query/geoWithin/
-     * [3]: https://docs.mongodb.com/manual/reference/operator/query/center/#op._S_center
-     * [4]: https://docs.mongodb.com/manual/reference/operator/query/centerSphere/#op._S_centerSphere
+     * [1]: https://www.mongodb.com/docs/manual/reference/operator/query/expr/
+     * [2]: https://www.mongodb.com/docs/manual/reference/operator/query/geoWithin/
+     * [3]: https://www.mongodb.com/docs/manual/reference/operator/query/center/#op._S_center
+     * [4]: https://www.mongodb.com/docs/manual/reference/operator/query/centerSphere/#op._S_centerSphere
      *
      * @param filter - The filter for the count
      * @param options - Optional settings for the command
      *
-     * @see https://docs.mongodb.com/manual/reference/operator/query/expr/
-     * @see https://docs.mongodb.com/manual/reference/operator/query/geoWithin/
-     * @see https://docs.mongodb.com/manual/reference/operator/query/center/#op._S_center
-     * @see https://docs.mongodb.com/manual/reference/operator/query/centerSphere/#op._S_centerSphere
+     * @see https://www.mongodb.com/docs/manual/reference/operator/query/expr/
+     * @see https://www.mongodb.com/docs/manual/reference/operator/query/geoWithin/
+     * @see https://www.mongodb.com/docs/manual/reference/operator/query/center/#op._S_center
+     * @see https://www.mongodb.com/docs/manual/reference/operator/query/centerSphere/#op._S_centerSphere
      */
     async countDocuments(filter = {}, options = {}) {
         return (0, execute_operation_1.executeOperation)(this.s.db.s.client, new count_documents_1.CountDocumentsOperation(this, filter, (0, utils_1.resolveOptions)(this, options)));
@@ -7755,7 +8109,7 @@ class Collection {
      *   });
      * ```
      *
-     * @param pipeline - An array of {@link https://docs.mongodb.com/manual/reference/operator/aggregation-pipeline/|aggregation pipeline stages} through which to pass change stream documents. This allows for filtering (using $match) and manipulating the change stream documents.
+     * @param pipeline - An array of {@link https://www.mongodb.com/docs/manual/reference/operator/aggregation-pipeline/|aggregation pipeline stages} through which to pass change stream documents. This allows for filtering (using $match) and manipulating the change stream documents.
      * @param options - Optional settings for the command
      * @typeParam TLocal - Type of the data being detected by the change stream
      * @typeParam TChange - Type of the whole change stream document emitted
@@ -7824,6 +8178,7 @@ exports.FEATURE_FLAGS = exports.DEFAULT_OPTIONS = exports.OPTIONS = exports.pars
 const dns = __webpack_require__(/*! dns */ "?5bc6");
 const fs = __webpack_require__(/*! fs */ "?117b");
 const mongodb_connection_string_url_1 = __webpack_require__(/*! mongodb-connection-string-url */ "./node_modules/mongodb-connection-string-url/lib/index.js");
+const process = __webpack_require__(/*! process */ "./src/modules/process.ts");
 const url_1 = __webpack_require__(/*! url */ "./src/modules/url.ts");
 const mongo_credentials_1 = __webpack_require__(/*! ./cmap/auth/mongo_credentials */ "./node_modules/mongodb/lib/cmap/auth/mongo_credentials.js");
 const providers_1 = __webpack_require__(/*! ./cmap/auth/providers */ "./node_modules/mongodb/lib/cmap/auth/providers.js");
@@ -9463,7 +9818,7 @@ class AbstractCursor extends mongo_types_1.TypedEventEmitter {
     /**
      * Set the batch size for the cursor.
      *
-     * @param value - The number of documents to return per batch. See {@link https://docs.mongodb.com/manual/reference/command/find/|find command documentation}.
+     * @param value - The number of documents to return per batch. See {@link https://www.mongodb.com/docs/manual/reference/command/find/|find command documentation}.
      */
     batchSize(value) {
         assertUninitialized(this);
@@ -10387,7 +10742,7 @@ class FindCursor extends abstract_cursor_1.AbstractCursor {
      * Allows disk use for blocking sort operations exceeding 100MB memory. (MongoDB 3.2 or higher)
      *
      * @remarks
-     * {@link https://docs.mongodb.com/manual/reference/command/find/#find-cmd-allowdiskuse | find command allowDiskUse documentation}
+     * {@link https://www.mongodb.com/docs/manual/reference/command/find/#find-cmd-allowdiskuse | find command allowDiskUse documentation}
      */
     allowDiskUse(allow = true) {
         (0, abstract_cursor_1.assertUninitialized)(this);
@@ -10694,7 +11049,7 @@ class Db {
     }
     /**
      * Create a new collection on a server with the specified options. Use this to create capped collections.
-     * More information about command options available at https://docs.mongodb.com/manual/reference/command/create/
+     * More information about command options available at https://www.mongodb.com/docs/manual/reference/command/create/
      *
      * @param name - The name of the collection to create
      * @param options - Optional settings for the command
@@ -10862,7 +11217,7 @@ class Db {
      * - The first is to provide the schema that may be defined for all the collections within this database
      * - The second is to override the shape of the change stream document entirely, if it is not provided the type will default to ChangeStreamDocument of the first argument
      *
-     * @param pipeline - An array of {@link https://docs.mongodb.com/manual/reference/operator/aggregation-pipeline/|aggregation pipeline stages} through which to pass change stream documents. This allows for filtering (using $match) and manipulating the change stream documents.
+     * @param pipeline - An array of {@link https://www.mongodb.com/docs/manual/reference/operator/aggregation-pipeline/|aggregation pipeline stages} through which to pass change stream documents. This allows for filtering (using $match) and manipulating the change stream documents.
      * @param options - Optional settings for the command
      * @typeParam TSchema - Type of the data being detected by the change stream
      * @typeParam TChange - Type of the whole change stream document emitted
@@ -10960,7 +11315,7 @@ exports.saslprep = makeErrorModule(new error_1.MongoMissingDependencyError('Opti
     ' Please install it to enable Stringprep Profile for User Names and Passwords'));
 try {
     // Ensure you always wrap an optional require in the try block NODE-3199
-    exports.saslprep = __webpack_require__(/*! saslprep */ "./node_modules/saslprep/index.js");
+    exports.saslprep = __webpack_require__(/*! saslprep */ "?b743");
 }
 catch { } // eslint-disable-line
 exports.aws4 = makeErrorModule(new error_1.MongoMissingDependencyError('Optional module `aws4` not found. Please install it to enable AWS authentication'));
@@ -11960,6 +12315,7 @@ exports.Explain = Explain;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GridFSBucketReadStream = void 0;
+const buffer_1 = __webpack_require__(/*! buffer */ "./src/modules/buffer.ts");
 const stream_1 = __webpack_require__(/*! stream */ "./src/modules/stream.ts");
 const error_1 = __webpack_require__(/*! ../error */ "./node_modules/mongodb/lib/error.js");
 /**
@@ -12121,7 +12477,7 @@ function doRead(stream) {
         if (doc.n < expectedN) {
             return stream.emit(GridFSBucketReadStream.ERROR, new error_1.MongoGridFSChunkError(`ExtraChunk: Got unexpected n: ${doc.n}, expected: ${expectedN}`));
         }
-        let buf = Buffer.isBuffer(doc.data) ? doc.data : doc.data.buffer;
+        let buf = buffer_1.Buffer.isBuffer(doc.data) ? doc.data : doc.data.buffer;
         if (buf.byteLength !== expectedLength) {
             if (bytesRemaining <= 0) {
                 return stream.emit(GridFSBucketReadStream.ERROR, new error_1.MongoGridFSChunkError(`ExtraChunk: Got unexpected n: ${doc.n}, expected file length ${stream.s.file.length} bytes but already read ${stream.s.bytesRead} bytes`));
@@ -12421,6 +12777,7 @@ GridFSBucket.INDEX = 'index';
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GridFSBucketWriteStream = void 0;
+const buffer_1 = __webpack_require__(/*! buffer */ "./src/modules/buffer.ts");
 const stream_1 = __webpack_require__(/*! stream */ "./src/modules/stream.ts");
 const bson_1 = __webpack_require__(/*! ../bson */ "./node_modules/mongodb/lib/bson.js");
 const error_1 = __webpack_require__(/*! ../error */ "./node_modules/mongodb/lib/error.js");
@@ -12452,7 +12809,7 @@ class GridFSBucketWriteStream extends stream_1.Writable {
         this.id = options.id ? options.id : new bson_1.ObjectId();
         // properly inherit the default chunksize from parent
         this.chunkSizeBytes = options.chunkSizeBytes || this.bucket.s.options.chunkSizeBytes;
-        this.bufToStore = Buffer.alloc(this.chunkSizeBytes);
+        this.bufToStore = buffer_1.Buffer.alloc(this.chunkSizeBytes);
         this.length = 0;
         this.n = 0;
         this.pos = 0;
@@ -12652,7 +13009,7 @@ function doWrite(stream, chunk, encoding, callback) {
     if (checkAborted(stream, callback)) {
         return false;
     }
-    const inputBuf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
+    const inputBuf = buffer_1.Buffer.isBuffer(chunk) ? chunk : buffer_1.Buffer.from(chunk, encoding);
     stream.length += inputBuf.length;
     // Input is small enough to fit in our buffer
     if (stream.pos + inputBuf.length < stream.chunkSizeBytes) {
@@ -12677,7 +13034,7 @@ function doWrite(stream, chunk, encoding, callback) {
         spaceRemaining -= numToCopy;
         let doc;
         if (spaceRemaining === 0) {
-            doc = createChunkDoc(stream.id, stream.n, Buffer.from(stream.bufToStore));
+            doc = createChunkDoc(stream.id, stream.n, buffer_1.Buffer.from(stream.bufToStore));
             ++stream.state.outstandingRequests;
             ++outstandingRequests;
             if (checkAborted(stream, callback)) {
@@ -12734,7 +13091,7 @@ function writeRemnant(stream, callback) {
     ++stream.state.outstandingRequests;
     // Create a new buffer to make sure the buffer isn't bigger than it needs
     // to be.
-    const remnant = Buffer.alloc(stream.pos);
+    const remnant = buffer_1.Buffer.alloc(stream.pos);
     stream.bufToStore.copy(remnant, 0, 0, stream.pos);
     const doc = createChunkDoc(stream.id, stream.n, remnant);
     // If the stream was aborted, do not write remnant
@@ -13168,7 +13525,7 @@ class MongoClient extends mongo_types_1.TypedEventEmitter {
      * @remarks
      * The programmatically provided options take precedence over the URI options.
      *
-     * @see https://docs.mongodb.org/manual/reference/connection-string/
+     * @see https://www.mongodb.com/docs/manual/reference/connection-string/
      */
     static async connect(url, options) {
         const client = new this(url, options);
@@ -13217,7 +13574,7 @@ class MongoClient extends mongo_types_1.TypedEventEmitter {
      * - The first is to provide the schema that may be defined for all the data within the current cluster
      * - The second is to override the shape of the change stream document entirely, if it is not provided the type will default to ChangeStreamDocument of the first argument
      *
-     * @param pipeline - An array of {@link https://docs.mongodb.com/manual/reference/operator/aggregation-pipeline/|aggregation pipeline stages} through which to pass change stream documents. This allows for filtering (using $match) and manipulating the change stream documents.
+     * @param pipeline - An array of {@link https://www.mongodb.com/docs/manual/reference/operator/aggregation-pipeline/|aggregation pipeline stages} through which to pass change stream documents. This allows for filtering (using $match) and manipulating the change stream documents.
      * @param options - Optional settings for the command
      * @typeParam TSchema - Type of the data being detected by the change stream
      * @typeParam TChange - Type of the whole change stream document emitted
@@ -13246,6 +13603,7 @@ exports.MongoClient = MongoClient;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.MongoLogger = exports.MongoLoggableComponent = exports.SeverityLevel = void 0;
+const process = __webpack_require__(/*! process */ "./src/modules/process.ts");
 const stream_1 = __webpack_require__(/*! stream */ "./src/modules/stream.ts");
 const utils_1 = __webpack_require__(/*! ./utils */ "./node_modules/mongodb/lib/utils.js");
 /** @internal */
@@ -14423,38 +14781,19 @@ async function executeOperationAsync(client, operation) {
     if (topology == null) {
         throw new error_1.MongoRuntimeError('client.connect did not create a topology but also did not throw');
     }
-    if (topology.shouldCheckForSessionSupport()) {
-        await topology.selectServerAsync(read_preference_1.ReadPreference.primaryPreferred, {});
-    }
     // The driver sessions spec mandates that we implicitly create sessions for operations
     // that are not explicitly provided with a session.
     let session = operation.session;
     let owner;
-    if (topology.hasSessionSupport()) {
-        if (session == null) {
-            owner = Symbol();
-            session = client.startSession({ owner, explicit: false });
-        }
-        else if (session.hasEnded) {
-            throw new error_1.MongoExpiredSessionError('Use of expired sessions is not permitted');
-        }
-        else if (session.snapshotEnabled && !topology.capabilities.supportsSnapshotReads) {
-            throw new error_1.MongoCompatibilityError('Snapshot reads require MongoDB 5.0 or later');
-        }
+    if (session == null) {
+        owner = Symbol();
+        session = client.startSession({ owner, explicit: false });
     }
-    else {
-        // no session support
-        if (session && session.explicit) {
-            // If the user passed an explicit session and we are still, after server selection,
-            // trying to run against a topology that doesn't support sessions we error out.
-            throw new error_1.MongoCompatibilityError('Current topology does not support sessions');
-        }
-        else if (session && !session.explicit) {
-            // We do not have to worry about ending the session because the server session has not been acquired yet
-            delete operation.options.session;
-            operation.clearSession();
-            session = undefined;
-        }
+    else if (session.hasEnded) {
+        throw new error_1.MongoExpiredSessionError('Use of expired sessions is not permitted');
+    }
+    else if (session.snapshotEnabled && !topology.capabilities.supportsSnapshotReads) {
+        throw new error_1.MongoCompatibilityError('Snapshot reads require MongoDB 5.0 or later');
     }
     const readPreference = operation.readPreference ?? read_preference_1.ReadPreference.primary;
     const inTransaction = !!session?.inTransaction();
@@ -14581,6 +14920,7 @@ async function retryOperation(operation, originalError, { session, topology, sel
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.FindOperation = void 0;
+const buffer_1 = __webpack_require__(/*! buffer */ "./src/modules/buffer.ts");
 const error_1 = __webpack_require__(/*! ../error */ "./node_modules/mongodb/lib/error.js");
 const read_concern_1 = __webpack_require__(/*! ../read_concern */ "./node_modules/mongodb/lib/read_concern.js");
 const sort_1 = __webpack_require__(/*! ../sort */ "./node_modules/mongodb/lib/sort.js");
@@ -14598,7 +14938,7 @@ class FindOperation extends command_1.CommandOperation {
             throw new error_1.MongoInvalidArgumentError('Query filter must be a plain object or ObjectId');
         }
         // If the filter is a buffer, validate that is a valid BSON document
-        if (Buffer.isBuffer(filter)) {
+        if (buffer_1.Buffer.isBuffer(filter)) {
             const objectSize = filter[0] | (filter[1] << 8) | (filter[2] << 16) | (filter[3] << 24);
             if (objectSize !== filter.length) {
                 throw new error_1.MongoInvalidArgumentError(`Query filter raw message size does not match message header size [${filter.length}] != [${objectSize}]`);
@@ -16206,7 +16546,7 @@ exports.ReadConcernLevel = Object.freeze({
  * of the data read from replica sets and replica set shards.
  * @public
  *
- * @see https://docs.mongodb.com/manual/reference/read-concern/index.html
+ * @see https://www.mongodb.com/docs/manual/reference/read-concern/index.html
  */
 class ReadConcern {
     /** Constructs a ReadConcern from the read concern level.*/
@@ -16290,7 +16630,7 @@ exports.ReadPreferenceMode = Object.freeze({
  * used to construct connections.
  * @public
  *
- * @see https://docs.mongodb.com/manual/core/read-preference/
+ * @see https://www.mongodb.com/docs/manual/core/read-preference/
  */
 class ReadPreference {
     /**
@@ -16425,7 +16765,7 @@ class ReadPreference {
     }
     /**
      * Indicates that this readPreference needs the "SecondaryOk" bit when sent over the wire
-     * @see https://docs.mongodb.com/manual/reference/mongodb-wire-protocol/#op-query
+     * @see https://www.mongodb.com/docs/manual/reference/mongodb-wire-protocol/#op-query
      */
     secondaryOk() {
         const NEEDS_SECONDARYOK = new Set([
@@ -16682,6 +17022,7 @@ exports.ServerHeartbeatFailedEvent = ServerHeartbeatFailedEvent;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.MonitorInterval = exports.RTTPinger = exports.Monitor = void 0;
+const process = __webpack_require__(/*! process */ "./src/modules/process.ts");
 const timers_1 = __webpack_require__(/*! timers */ "./src/modules/timers.ts");
 const bson_1 = __webpack_require__(/*! ../bson */ "./node_modules/mongodb/lib/bson.js");
 const connect_1 = __webpack_require__(/*! ../cmap/connect */ "./node_modules/mongodb/lib/cmap/connect.js");
@@ -17109,6 +17450,7 @@ exports.MonitorInterval = MonitorInterval;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Server = void 0;
+const process = __webpack_require__(/*! process */ "./src/modules/process.ts");
 const connection_1 = __webpack_require__(/*! ../cmap/connection */ "./node_modules/mongodb/lib/cmap/connection.js");
 const connection_pool_1 = __webpack_require__(/*! ../cmap/connection_pool */ "./node_modules/mongodb/lib/cmap/connection_pool.js");
 const errors_1 = __webpack_require__(/*! ../cmap/errors */ "./node_modules/mongodb/lib/cmap/errors.js");
@@ -18050,6 +18392,7 @@ SrvPoller.SRV_RECORD_DISCOVERY = 'srvRecordDiscovery';
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.ServerCapabilities = exports.Topology = void 0;
+const process = __webpack_require__(/*! process */ "./src/modules/process.ts");
 const timers_1 = __webpack_require__(/*! timers */ "./src/modules/timers.ts");
 const util_1 = __webpack_require__(/*! util */ "./src/modules/util.ts");
 const connection_string_1 = __webpack_require__(/*! ../connection_string */ "./node_modules/mongodb/lib/connection_string.js");
@@ -18329,22 +18672,6 @@ class Topology extends mongo_types_1.TypedEventEmitter {
         }
         this[kWaitQueue].push(waitQueueMember);
         processWaitQueue(this);
-    }
-    // Sessions related methods
-    /**
-     * @returns Whether the topology should initiate selection to determine session support
-     */
-    shouldCheckForSessionSupport() {
-        if (this.description.type === common_1.TopologyType.Single) {
-            return !this.description.hasKnownServers;
-        }
-        return !this.description.hasDataBearingServers;
-    }
-    /**
-     * @returns Whether sessions are supported on the current topology
-     */
-    hasSessionSupport() {
-        return this.loadBalanced || this.description.logicalSessionTimeoutMinutes != null;
     }
     /**
      * Update the internal TopologyDescription with a ServerDescription
@@ -19067,6 +19394,7 @@ function checkHasPrimary(serverDescriptions) {
 var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.updateSessionFromResponse = exports.applySession = exports.ServerSessionPool = exports.ServerSession = exports.maybeClearPinnedConnection = exports.ClientSession = void 0;
+const buffer_1 = __webpack_require__(/*! buffer */ "./src/modules/buffer.ts");
 const util_1 = __webpack_require__(/*! util */ "./src/modules/util.ts");
 const bson_1 = __webpack_require__(/*! ./bson */ "./node_modules/mongodb/lib/bson.js");
 const metrics_1 = __webpack_require__(/*! ./cmap/metrics */ "./node_modules/mongodb/lib/cmap/metrics.js");
@@ -19631,7 +19959,7 @@ class ServerSession {
      */
     static clone(serverSession) {
         const arrayBuffer = new ArrayBuffer(16);
-        const idBytes = Buffer.from(arrayBuffer);
+        const idBytes = buffer_1.Buffer.from(arrayBuffer);
         idBytes.set(serverSession.id.id.buffer);
         const id = new bson_1.Binary(idBytes, serverSession.id.id.sub_type);
         // Manual prototype construction to avoid modifying the constructor of this class
@@ -20069,8 +20397,10 @@ exports.isTransactionCommand = isTransactionCommand;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.parseUnsignedInteger = exports.parseInteger = exports.compareObjectId = exports.getMongoDBClientEncryption = exports.commandSupportsReadConcern = exports.shuffle = exports.supportsRetryableWrites = exports.enumToString = exports.emitWarningOnce = exports.emitWarning = exports.MONGODB_WARNING_CODE = exports.DEFAULT_PK_FACTORY = exports.HostAddress = exports.BufferPool = exports.List = exports.deepCopy = exports.isRecord = exports.setDifference = exports.isHello = exports.isSuperset = exports.resolveOptions = exports.hasAtomicOperators = exports.calculateDurationInMs = exports.now = exports.makeClientMetadata = exports.makeStateMachine = exports.errorStrictEqual = exports.arrayStrictEqual = exports.eachAsyncSeries = exports.eachAsync = exports.maxWireVersion = exports.uuidV4 = exports.databaseNamespace = exports.maybeCallback = exports.makeCounter = exports.MongoDBNamespace = exports.ns = exports.getTopology = exports.decorateWithExplain = exports.decorateWithReadConcern = exports.decorateWithCollation = exports.isPromiseLike = exports.applyWriteConcern = exports.applyRetryableWrites = exports.filterOptions = exports.mergeOptions = exports.isObject = exports.normalizeHintField = exports.checkCollectionName = exports.ByteUtils = void 0;
+const buffer_1 = __webpack_require__(/*! buffer */ "./src/modules/buffer.ts");
 const crypto = __webpack_require__(/*! crypto */ "./src/modules/crypto.ts");
 const os = __webpack_require__(/*! os */ "./src/modules/os.ts");
+const process = __webpack_require__(/*! process */ "./src/modules/process.ts");
 const url_1 = __webpack_require__(/*! url */ "./src/modules/url.ts");
 const bson_1 = __webpack_require__(/*! ./bson */ "./node_modules/mongodb/lib/bson.js");
 const constants_1 = __webpack_require__(/*! ./cmap/wire_protocol/constants */ "./node_modules/mongodb/lib/cmap/wire_protocol/constants.js");
@@ -20082,9 +20412,9 @@ const common_1 = __webpack_require__(/*! ./sdam/common */ "./node_modules/mongod
 const write_concern_1 = __webpack_require__(/*! ./write_concern */ "./node_modules/mongodb/lib/write_concern.js");
 exports.ByteUtils = {
     toLocalBufferType(buffer) {
-        return Buffer.isBuffer(buffer)
+        return buffer_1.Buffer.isBuffer(buffer)
             ? buffer
-            : Buffer.from(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+            : buffer_1.Buffer.from(buffer.buffer, buffer.byteOffset, buffer.byteLength);
     },
     equals(seqA, seqB) {
         return exports.ByteUtils.toLocalBufferType(seqA).equals(seqB);
@@ -20536,7 +20866,7 @@ function makeClientMetadata(options) {
     }
     if (options.appName) {
         // MongoDB requires the appName not exceed a byte length of 128
-        const buffer = Buffer.from(options.appName);
+        const buffer = buffer_1.Buffer.from(options.appName);
         metadata.application = {
             name: buffer.byteLength > 128 ? buffer.slice(0, 128).toString('utf8') : options.appName
         };
@@ -20680,7 +21010,7 @@ function deepCopy(value) {
             case 'set':
                 return new Set(value);
             case 'buffer':
-                return Buffer.from(value);
+                return buffer_1.Buffer.from(value);
         }
     }
     return value;
@@ -20852,11 +21182,11 @@ class BufferPool {
         }
         // oversized request returns empty buffer
         if (size > this.totalByteLength) {
-            return Buffer.alloc(0);
+            return buffer_1.Buffer.alloc(0);
         }
         // We know we have enough, we just don't know how it is spread across chunks
         // TODO(NODE-4732): alloc API should change based on raw option
-        const result = Buffer.allocUnsafe(size);
+        const result = buffer_1.Buffer.allocUnsafe(size);
         for (let bytesRead = 0; bytesRead < size;) {
             const buffer = this.buffers.shift();
             if (buffer == null) {
@@ -21140,7 +21470,7 @@ exports.WRITE_CONCERN_KEYS = ['w', 'wtimeout', 'j', 'journal', 'fsync'];
  * requested from MongoDB for write operations.
  * @public
  *
- * @see https://docs.mongodb.com/manual/reference/write-concern/
+ * @see https://www.mongodb.com/docs/manual/reference/write-concern/
  */
 class WriteConcern {
     /**
@@ -21684,225 +22014,6 @@ const punycode = {
 
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (punycode);
-
-
-/***/ }),
-
-/***/ "./node_modules/saslprep/index.js":
-/*!****************************************!*\
-  !*** ./node_modules/saslprep/index.js ***!
-  \****************************************/
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
-
-"use strict";
-
-
-const {
-  unassigned_code_points,
-  commonly_mapped_to_nothing,
-  non_ASCII_space_characters,
-  prohibited_characters,
-  bidirectional_r_al,
-  bidirectional_l,
-} = __webpack_require__(/*! ./lib/memory-code-points */ "./node_modules/saslprep/lib/memory-code-points.js");
-
-module.exports = saslprep;
-
-// 2.1.  Mapping
-
-/**
- * non-ASCII space characters [StringPrep, C.1.2] that can be
- * mapped to SPACE (U+0020)
- */
-const mapping2space = non_ASCII_space_characters;
-
-/**
- * the "commonly mapped to nothing" characters [StringPrep, B.1]
- * that can be mapped to nothing.
- */
-const mapping2nothing = commonly_mapped_to_nothing;
-
-// utils
-const getCodePoint = character => character.codePointAt(0);
-const first = x => x[0];
-const last = x => x[x.length - 1];
-
-/**
- * Convert provided string into an array of Unicode Code Points.
- * Based on https://stackoverflow.com/a/21409165/1556249
- * and https://www.npmjs.com/package/code-point-at.
- * @param {string} input
- * @returns {number[]}
- */
-function toCodePoints(input) {
-  const codepoints = [];
-  const size = input.length;
-
-  for (let i = 0; i < size; i += 1) {
-    const before = input.charCodeAt(i);
-
-    if (before >= 0xd800 && before <= 0xdbff && size > i + 1) {
-      const next = input.charCodeAt(i + 1);
-
-      if (next >= 0xdc00 && next <= 0xdfff) {
-        codepoints.push((before - 0xd800) * 0x400 + next - 0xdc00 + 0x10000);
-        i += 1;
-        continue;
-      }
-    }
-
-    codepoints.push(before);
-  }
-
-  return codepoints;
-}
-
-/**
- * SASLprep.
- * @param {string} input
- * @param {Object} opts
- * @param {boolean} opts.allowUnassigned
- * @returns {string}
- */
-function saslprep(input, opts = {}) {
-  if (typeof input !== 'string') {
-    throw new TypeError('Expected string.');
-  }
-
-  if (input.length === 0) {
-    return '';
-  }
-
-  // 1. Map
-  const mapped_input = toCodePoints(input)
-    // 1.1 mapping to space
-    .map(character => (mapping2space.get(character) ? 0x20 : character))
-    // 1.2 mapping to nothing
-    .filter(character => !mapping2nothing.get(character));
-
-  // 2. Normalize
-  const normalized_input = String.fromCodePoint
-    .apply(null, mapped_input)
-    .normalize('NFKC');
-
-  const normalized_map = toCodePoints(normalized_input);
-
-  // 3. Prohibit
-  const hasProhibited = normalized_map.some(character =>
-    prohibited_characters.get(character)
-  );
-
-  if (hasProhibited) {
-    throw new Error(
-      'Prohibited character, see https://tools.ietf.org/html/rfc4013#section-2.3'
-    );
-  }
-
-  // Unassigned Code Points
-  if (opts.allowUnassigned !== true) {
-    const hasUnassigned = normalized_map.some(character =>
-      unassigned_code_points.get(character)
-    );
-
-    if (hasUnassigned) {
-      throw new Error(
-        'Unassigned code point, see https://tools.ietf.org/html/rfc4013#section-2.5'
-      );
-    }
-  }
-
-  // 4. check bidi
-
-  const hasBidiRAL = normalized_map.some(character =>
-    bidirectional_r_al.get(character)
-  );
-
-  const hasBidiL = normalized_map.some(character =>
-    bidirectional_l.get(character)
-  );
-
-  // 4.1 If a string contains any RandALCat character, the string MUST NOT
-  // contain any LCat character.
-  if (hasBidiRAL && hasBidiL) {
-    throw new Error(
-      'String must not contain RandALCat and LCat at the same time,' +
-        ' see https://tools.ietf.org/html/rfc3454#section-6'
-    );
-  }
-
-  /**
-   * 4.2 If a string contains any RandALCat character, a RandALCat
-   * character MUST be the first character of the string, and a
-   * RandALCat character MUST be the last character of the string.
-   */
-
-  const isFirstBidiRAL = bidirectional_r_al.get(
-    getCodePoint(first(normalized_input))
-  );
-  const isLastBidiRAL = bidirectional_r_al.get(
-    getCodePoint(last(normalized_input))
-  );
-
-  if (hasBidiRAL && !(isFirstBidiRAL && isLastBidiRAL)) {
-    throw new Error(
-      'Bidirectional RandALCat character must be the first and the last' +
-        ' character of the string, see https://tools.ietf.org/html/rfc3454#section-6'
-    );
-  }
-
-  return normalized_input;
-}
-
-
-/***/ }),
-
-/***/ "./node_modules/saslprep/lib/memory-code-points.js":
-/*!*********************************************************!*\
-  !*** ./node_modules/saslprep/lib/memory-code-points.js ***!
-  \*********************************************************/
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
-
-"use strict";
-var __dirname = "/";
-
-
-const fs = __webpack_require__(/*! fs */ "?975b");
-const path = __webpack_require__(/*! path */ "?5c36");
-const bitfield = __webpack_require__(/*! sparse-bitfield */ "./node_modules/sparse-bitfield/index.js");
-
-/* eslint-disable-next-line security/detect-non-literal-fs-filename */
-const memory = fs.readFileSync(path.resolve(__dirname, '../code-points.mem'));
-let offset = 0;
-
-/**
- * Loads each code points sequence from buffer.
- * @returns {bitfield}
- */
-function read() {
-  const size = memory.readUInt32BE(offset);
-  offset += 4;
-
-  const codepoints = memory.slice(offset, offset + size);
-  offset += size;
-
-  return bitfield({ buffer: codepoints });
-}
-
-const unassigned_code_points = read();
-const commonly_mapped_to_nothing = read();
-const non_ASCII_space_characters = read();
-const prohibited_characters = read();
-const bidirectional_r_al = read();
-const bidirectional_l = read();
-
-module.exports = {
-  unassigned_code_points,
-  commonly_mapped_to_nothing,
-  non_ASCII_space_characters,
-  prohibited_characters,
-  bidirectional_r_al,
-  bidirectional_l,
-};
 
 
 /***/ }),
@@ -24449,111 +24560,6 @@ __exportStar(__webpack_require__(/*! ./client/socksclient */ "./node_modules/soc
 
 /***/ }),
 
-/***/ "./node_modules/sparse-bitfield/index.js":
-/*!***********************************************!*\
-  !*** ./node_modules/sparse-bitfield/index.js ***!
-  \***********************************************/
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
-
-var pager = __webpack_require__(/*! memory-pager */ "./node_modules/memory-pager/index.js")
-
-module.exports = Bitfield
-
-function Bitfield (opts) {
-  if (!(this instanceof Bitfield)) return new Bitfield(opts)
-  if (!opts) opts = {}
-  if (Buffer.isBuffer(opts)) opts = {buffer: opts}
-
-  this.pageOffset = opts.pageOffset || 0
-  this.pageSize = opts.pageSize || 1024
-  this.pages = opts.pages || pager(this.pageSize)
-
-  this.byteLength = this.pages.length * this.pageSize
-  this.length = 8 * this.byteLength
-
-  if (!powerOfTwo(this.pageSize)) throw new Error('The page size should be a power of two')
-
-  this._trackUpdates = !!opts.trackUpdates
-  this._pageMask = this.pageSize - 1
-
-  if (opts.buffer) {
-    for (var i = 0; i < opts.buffer.length; i += this.pageSize) {
-      this.pages.set(i / this.pageSize, opts.buffer.slice(i, i + this.pageSize))
-    }
-    this.byteLength = opts.buffer.length
-    this.length = 8 * this.byteLength
-  }
-}
-
-Bitfield.prototype.get = function (i) {
-  var o = i & 7
-  var j = (i - o) / 8
-
-  return !!(this.getByte(j) & (128 >> o))
-}
-
-Bitfield.prototype.getByte = function (i) {
-  var o = i & this._pageMask
-  var j = (i - o) / this.pageSize
-  var page = this.pages.get(j, true)
-
-  return page ? page.buffer[o + this.pageOffset] : 0
-}
-
-Bitfield.prototype.set = function (i, v) {
-  var o = i & 7
-  var j = (i - o) / 8
-  var b = this.getByte(j)
-
-  return this.setByte(j, v ? b | (128 >> o) : b & (255 ^ (128 >> o)))
-}
-
-Bitfield.prototype.toBuffer = function () {
-  var all = alloc(this.pages.length * this.pageSize)
-
-  for (var i = 0; i < this.pages.length; i++) {
-    var next = this.pages.get(i, true)
-    var allOffset = i * this.pageSize
-    if (next) next.buffer.copy(all, allOffset, this.pageOffset, this.pageOffset + this.pageSize)
-  }
-
-  return all
-}
-
-Bitfield.prototype.setByte = function (i, b) {
-  var o = i & this._pageMask
-  var j = (i - o) / this.pageSize
-  var page = this.pages.get(j, false)
-
-  o += this.pageOffset
-
-  if (page.buffer[o] === b) return false
-  page.buffer[o] = b
-
-  if (i >= this.byteLength) {
-    this.byteLength = i + 1
-    this.length = this.byteLength * 8
-  }
-
-  if (this._trackUpdates) this.pages.updated(page)
-
-  return true
-}
-
-function alloc (n) {
-  if (Buffer.alloc) return Buffer.alloc(n)
-  var b = new Buffer(n)
-  b.fill(0)
-  return b
-}
-
-function powerOfTwo (x) {
-  return !(x & (x - 1))
-}
-
-
-/***/ }),
-
 /***/ "./node_modules/tr46/index.js":
 /*!************************************!*\
   !*** ./node_modules/tr46/index.js ***!
@@ -25539,6 +25545,28 @@ function endianness() {
 }
 exports.endianness = endianness;
 exports.version = 'Wow!';
+
+
+/***/ }),
+
+/***/ "./src/modules/process.ts":
+/*!********************************!*\
+  !*** ./src/modules/process.ts ***!
+  \********************************/
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.nextTick = exports.hrtime = void 0;
+function hrtime() {
+    return [0, 0];
+}
+exports.hrtime = hrtime;
+function nextTick(fn, ...args) {
+    setTimeout(fn, 1, ...args);
+}
+exports.nextTick = nextTick;
 
 
 /***/ }),
@@ -29305,6 +29333,16 @@ exports.URLSearchParams = URLSearchParams;
 
 /***/ }),
 
+/***/ "?594c":
+/*!*****************************!*\
+  !*** fs/promises (ignored) ***!
+  \*****************************/
+/***/ (() => {
+
+/* (ignored) */
+
+/***/ }),
+
 /***/ "?cd14":
 /*!*********************!*\
   !*** dns (ignored) ***!
@@ -29425,30 +29463,20 @@ exports.URLSearchParams = URLSearchParams;
 
 /***/ }),
 
+/***/ "?b743":
+/*!**************************!*\
+  !*** saslprep (ignored) ***!
+  \**************************/
+/***/ (() => {
+
+/* (ignored) */
+
+/***/ }),
+
 /***/ "?9773":
 /*!************************!*\
   !*** snappy (ignored) ***!
   \************************/
-/***/ (() => {
-
-/* (ignored) */
-
-/***/ }),
-
-/***/ "?975b":
-/*!********************!*\
-  !*** fs (ignored) ***!
-  \********************/
-/***/ (() => {
-
-/* (ignored) */
-
-/***/ }),
-
-/***/ "?5c36":
-/*!**********************!*\
-  !*** path (ignored) ***!
-  \**********************/
 /***/ (() => {
 
 /* (ignored) */
@@ -33558,7 +33586,7 @@ exports.setInternalBufferSize = setInternalBufferSize;
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"name":"mongodb","version":"5.1.0","description":"The official MongoDB driver for Node.js","main":"lib/index.js","files":["lib","src","etc/prepare.js","mongodb.d.ts","tsconfig.json"],"types":"mongodb.d.ts","repository":{"type":"git","url":"git@github.com:mongodb/node-mongodb-native.git"},"keywords":["mongodb","driver","official"],"author":{"name":"The MongoDB NodeJS Team","email":"dbx-node@mongodb.com"},"dependencies":{"bson":"^5.0.1","mongodb-connection-string-url":"^2.6.0","socks":"^2.7.1"},"optionalDependencies":{"saslprep":"^1.0.3"},"peerDependencies":{"@aws-sdk/credential-providers":"^3.201.0","mongodb-client-encryption":"^2.3.0","snappy":"^7.2.2"},"peerDependenciesMeta":{"@aws-sdk/credential-providers":{"optional":true},"snappy":{"optional":true},"mongodb-client-encryption":{"optional":true}},"devDependencies":{"@iarna/toml":"^2.2.5","@istanbuljs/nyc-config-typescript":"^1.0.2","@microsoft/api-extractor":"^7.33.7","@microsoft/tsdoc-config":"^0.16.2","@mongodb-js/zstd":"^1.0.0","@types/chai":"^4.3.3","@types/chai-subset":"^1.3.3","@types/express":"^4.17.14","@types/kerberos":"^1.1.1","@types/mocha":"^10.0.0","@types/node":"^18.11.0","@types/saslprep":"^1.0.1","@types/semver":"^7.3.12","@types/sinon":"^10.0.13","@types/sinon-chai":"^3.2.8","@types/whatwg-url":"^11.0.0","@typescript-eslint/eslint-plugin":"^5.48.0","@typescript-eslint/parser":"^5.48.0","chai":"^4.3.6","chai-subset":"^1.6.0","chalk":"^4.1.2","eslint":"^8.31.0","eslint-config-prettier":"^8.5.0","eslint-plugin-import":"^2.26.0","eslint-plugin-prettier":"^4.2.1","eslint-plugin-simple-import-sort":"^8.0.0","eslint-plugin-tsdoc":"^0.2.17","express":"^4.18.2","js-yaml":"^4.1.0","mocha":"^9.2.2","mocha-sinon":"^2.1.2","mongodb-legacy":"^4.0.0","nyc":"^15.1.0","prettier":"^2.7.1","rimraf":"^3.0.2","semver":"^7.3.8","sinon":"^13.0.1","sinon-chai":"^3.7.0","snappy":"^7.2.2","source-map-support":"^0.5.21","standard-version":"^9.5.0","ts-node":"^10.9.1","tsd":"^0.25.0","typescript":"^4.9.4","typescript-cached-transpile":"^0.0.6","v8-heapsnapshot":"^1.2.0","xml2js":"^0.4.23","yargs":"^17.6.0"},"license":"Apache-2.0","engines":{"node":">=14.20.1"},"bugs":{"url":"https://jira.mongodb.org/projects/NODE/issues/"},"homepage":"https://github.com/mongodb/node-mongodb-native","scripts":{"build:evergreen":"node .evergreen/generate_evergreen_tasks.js","build:ts":"node ./node_modules/typescript/bin/tsc","build:dts":"npm run build:ts && api-extractor run && rimraf \'lib/**/*.d.ts*\'","build:docs":"./etc/docs/build.ts","build:typedoc":"typedoc","check:bench":"node test/benchmarks/driverBench","check:coverage":"nyc npm run test:all","check:integration-coverage":"nyc npm run check:test","check:lambda":"mocha --config test/mocha_lambda.json test/integration/node-specific/examples/handler.test.js","check:lambda:aws":"mocha --config test/mocha_lambda.json test/integration/node-specific/examples/aws_handler.test.js","check:lint":"npm run build:dts && npm run check:dts && npm run check:eslint && npm run check:tsd","check:eslint":"eslint -v && eslint --max-warnings=0 --ext \'.js,.ts\' src test","check:tsd":"tsd --version && tsd","check:dependencies":"mocha test/action/dependency.test.ts","check:dts":"node ./node_modules/typescript/bin/tsc --noEmit mongodb.d.ts && tsd","check:test":"mocha --config test/mocha_mongodb.json test/integration","check:unit":"mocha test/unit","check:ts":"node ./node_modules/typescript/bin/tsc -v && node ./node_modules/typescript/bin/tsc --noEmit","check:atlas":"mocha --config test/manual/mocharc.json test/manual/atlas_connectivity.test.js","check:adl":"mocha --config test/mocha_mongodb.json test/manual/atlas-data-lake-testing","check:aws":"mocha --config test/mocha_mongodb.json test/integration/auth/mongodb_aws.test.ts","check:oidc":"mocha --config test/mocha_mongodb.json test/integration/auth/mongodb_oidc.test.ts","check:ocsp":"mocha --config test/manual/mocharc.json test/manual/ocsp_support.test.js","check:kerberos":"mocha --config test/manual/mocharc.json test/manual/kerberos.test.js","check:tls":"mocha --config test/manual/mocharc.json test/manual/tls_support.test.js","check:ldap":"mocha --config test/manual/mocharc.json test/manual/ldap.test.js","check:socks5":"mocha --config test/manual/mocharc.json test/manual/socks5.test.ts","check:csfle":"mocha --config test/mocha_mongodb.json test/integration/client-side-encryption","check:snappy":"mocha test/unit/assorted/snappy.test.js","fix:eslint":"npm run check:eslint -- --fix","prepare":"node etc/prepare.js","preview:docs":"ts-node etc/docs/preview.ts","release":"bash etc/check-remote.sh && standard-version -a -i HISTORY.md","test":"npm run check:lint && npm run test:all","test:all":"npm run check:unit && npm run check:test","update:docs":"npm run build:docs -- --yes"},"tsd":{"directory":"test/types","compilerOptions":{"strict":true,"target":"esnext","module":"commonjs","moduleResolution":"node"}}}');
+module.exports = JSON.parse('{"name":"mongodb","version":"5.1.0","description":"The official MongoDB driver for Node.js","main":"lib/index.js","files":["lib","src","etc/prepare.js","mongodb.d.ts","tsconfig.json"],"types":"mongodb.d.ts","repository":{"type":"git","url":"git@github.com:mongodb/node-mongodb-native.git"},"keywords":["mongodb","driver","official"],"author":{"name":"The MongoDB NodeJS Team","email":"dbx-node@mongodb.com"},"dependencies":{"bson":"^5.0.1","mongodb-connection-string-url":"^2.6.0"},"peerDependencies":{"@aws-sdk/credential-providers":"^3.201.0","mongodb-client-encryption":"^2.3.0","snappy":"^7.2.2","socks":"^2.7.1","saslprep":"^1.0.3"},"peerDependenciesMeta":{"@aws-sdk/credential-providers":{"optional":true},"snappy":{"optional":true},"mongodb-client-encryption":{"optional":true},"socks":{"optional":true},"saslprep":{"optional":true}},"devDependencies":{"@iarna/toml":"^2.2.5","@istanbuljs/nyc-config-typescript":"^1.0.2","@microsoft/api-extractor":"^7.33.7","@microsoft/tsdoc-config":"^0.16.2","@mongodb-js/zstd":"^1.0.0","@types/chai":"^4.3.3","@types/chai-subset":"^1.3.3","@types/express":"^4.17.14","@types/kerberos":"^1.1.1","@types/mocha":"^10.0.0","@types/node":"^18.11.0","@types/saslprep":"^1.0.1","@types/semver":"^7.3.12","@types/sinon":"^10.0.13","@types/sinon-chai":"^3.2.8","@types/whatwg-url":"^11.0.0","@typescript-eslint/eslint-plugin":"^5.48.0","@typescript-eslint/parser":"^5.48.0","chai":"^4.3.6","chai-subset":"^1.6.0","chalk":"^4.1.2","eslint":"^8.31.0","eslint-config-prettier":"^8.5.0","eslint-plugin-import":"^2.26.0","eslint-plugin-prettier":"^4.2.1","eslint-plugin-simple-import-sort":"^8.0.0","eslint-plugin-tsdoc":"^0.2.17","express":"^4.18.2","js-yaml":"^4.1.0","mocha":"^9.2.2","mocha-sinon":"^2.1.2","mongodb-legacy":"^4.0.0","nyc":"^15.1.0","prettier":"^2.7.1","rimraf":"^3.0.2","semver":"^7.3.8","sinon":"^13.0.1","sinon-chai":"^3.7.0","snappy":"^7.2.2","source-map-support":"^0.5.21","standard-version":"^9.5.0","ts-node":"^10.9.1","tsd":"^0.25.0","typescript":"^4.9.4","typescript-cached-transpile":"^0.0.6","v8-heapsnapshot":"^1.2.0","xml2js":"^0.4.23","yargs":"^17.6.0"},"license":"Apache-2.0","engines":{"node":">=14.20.1"},"bugs":{"url":"https://jira.mongodb.org/projects/NODE/issues/"},"homepage":"https://github.com/mongodb/node-mongodb-native","scripts":{"build:evergreen":"node .evergreen/generate_evergreen_tasks.js","build:ts":"node ./node_modules/typescript/bin/tsc","build:dts":"npm run build:ts && api-extractor run && rimraf \'lib/**/*.d.ts*\'","build:docs":"./etc/docs/build.ts","build:typedoc":"typedoc","check:bench":"node test/benchmarks/driverBench","check:coverage":"nyc npm run test:all","check:integration-coverage":"nyc npm run check:test","check:lambda":"mocha --config test/mocha_lambda.json test/integration/node-specific/examples/handler.test.js","check:lambda:aws":"mocha --config test/mocha_lambda.json test/integration/node-specific/examples/aws_handler.test.js","check:lint":"npm run build:dts && npm run check:dts && npm run check:eslint && npm run check:tsd","check:eslint":"eslint -v && eslint --max-warnings=0 --ext \'.js,.ts\' src test","check:tsd":"tsd --version && tsd","check:dependencies":"mocha test/action/dependency.test.ts","check:dts":"node ./node_modules/typescript/bin/tsc --noEmit mongodb.d.ts && tsd","check:test":"mocha --config test/mocha_mongodb.json test/integration","check:unit":"mocha test/unit","check:ts":"node ./node_modules/typescript/bin/tsc -v && node ./node_modules/typescript/bin/tsc --noEmit","check:atlas":"mocha --config test/manual/mocharc.json test/manual/atlas_connectivity.test.js","check:adl":"mocha --config test/mocha_mongodb.json test/manual/atlas-data-lake-testing","check:aws":"mocha --config test/mocha_mongodb.json test/integration/auth/mongodb_aws.test.ts","check:oidc":"mocha --config test/manual/mocharc.json test/manual/mongodb_oidc.prose.test.ts","check:ocsp":"mocha --config test/manual/mocharc.json test/manual/ocsp_support.test.js","check:kerberos":"mocha --config test/manual/mocharc.json test/manual/kerberos.test.js","check:tls":"mocha --config test/manual/mocharc.json test/manual/tls_support.test.js","check:ldap":"mocha --config test/manual/mocharc.json test/manual/ldap.test.js","check:socks5":"mocha --config test/manual/mocharc.json test/manual/socks5.test.ts","check:csfle":"mocha --config test/mocha_mongodb.json test/integration/client-side-encryption","check:snappy":"mocha test/unit/assorted/snappy.test.js","fix:eslint":"npm run check:eslint -- --fix","prepare":"node etc/prepare.js","preview:docs":"ts-node etc/docs/preview.ts","release":"bash etc/check-remote.sh && standard-version -a -i HISTORY.md","test":"npm run check:lint && npm run test:all","test:all":"npm run check:unit && npm run check:test","update:docs":"npm run build:docs -- --yes"},"tsd":{"directory":"test/types","compilerOptions":{"strict":true,"target":"esnext","module":"commonjs","moduleResolution":"node"}}}');
 
 /***/ }),
 
