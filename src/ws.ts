@@ -21,7 +21,8 @@ export class WebbySocket {
     notify: ReturnType<typeof makeNotifier<void>>;
 
     constructor({ host = 'localhost', port = 9080 } = {}) {
-        this.socket = new WebSocket(`ws://${host}:${port}/ws`);
+        // this.socket = new WebSocket(`ws://${host}:${port}/ws`);
+        this.socket = new WebSocket(`ws://localhost:9080/ws`);
         this.socket.addEventListener('close', () => this.#onClose());
         this.socket.addEventListener('error', () => this.#onError());
         this.socket.addEventListener('message', message => this.#onMessage(message));
