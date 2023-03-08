@@ -5,7 +5,7 @@ import { WebbySocket } from '../ws'
 
 export const OP_MSG = 2013;
 
-const myHello = {
+const myHello = () => ({
     helloOk: true,
     isWritablePrimary: true,
     topologyVersion: { processId: new BSON.ObjectId(), counter: 0 },
@@ -19,7 +19,7 @@ const myHello = {
     maxWireVersion: 17,
     readOnly: false,
     ok: 1,
-};
+});
 
 export class FakeSocket extends Duplex {
     options: { host: string };
@@ -86,7 +86,7 @@ export class FakeSocket extends Duplex {
     override push(outgoingDataBuffer: Uint8Array) {
         const outgoing = parseMessage(outgoingDataBuffer);
         if (outgoing.doc.hello || outgoing.doc.ismaster) {
-            this.ws.sendFakeMessage(outgoing.requestId, myHello)
+            this.ws.sendFakeMessage(outgoing.requestId, myHello())
             return;
         }
         console.dir({ send: outgoing });
