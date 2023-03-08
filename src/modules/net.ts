@@ -1,38 +1,43 @@
 import { BSON } from "mongodb";
 import { webByteUtils, Buffer } from "./buffer";
 import { Duplex } from "./stream";
-import { hooks } from '../index'
+import { WebbySocket } from '../ws'
 
 export const OP_MSG = 2013;
 
-class FakeSocket extends Duplex {
-    options: any;
+export class FakeSocket extends Duplex {
+    options: { host: string };
     isKeptAlive: boolean;
     keepAliveDelay: number;
     timeoutMS: number;
     noDelay: boolean;
+    /** We make one websocket for every socket in the driver. Now we do not need multiplexing */
+    ws: WebbySocket;
+    wsReader: AsyncGenerator<Uint8Array, any, unknown>;
+    forwarder: Promise<void>;
+    remoteAddress: string;
+    remotePort: number;
 
-    constructor(options) {
+    constructor(options: { port: number; host: string }) {
         super();
         this.options = options;
+        this.remoteAddress = options.host;
+        this.remotePort = options.port;
+        this.ws = new WebbySocket(options);
+        this.wsReader = this.ws[Symbol.asyncIterator]();
+        this.forwarder = this.forwardMessagesToDriver()
     }
-
-    remoteAddress = 'iLoveJavaScript';
-    remotePort = 2390;
     // TCP specific
     setKeepAlive(enable: boolean, initialDelayMS: number) {
-        console.info(`setKeepAlive(${enable}, ${initialDelayMS})`);
         this.isKeptAlive = enable;
         this.keepAliveDelay = initialDelayMS;
     }
 
     setTimeout(timeoutMS: number) {
-        console.info(`setTimeout(${timeoutMS})`);
         this.timeoutMS = timeoutMS;
     }
 
     setNoDelay(noDelay: boolean) {
-        console.info(`setNoDelay(${noDelay})`);
         this.noDelay = noDelay;
     }
 
@@ -63,26 +68,15 @@ class FakeSocket extends Duplex {
     }
 
     override push(outgoingDataBuffer) {
-        hooks.fromDriver(async (reqId: number | Uint8Array, m: any) => {
-            if (ArrayBuffer.isView(reqId)) {
-                this.sendUint8ArrayToDriver(reqId);
-            } else {
-                this.sendMessageToDriver(reqId, m);
-            }
-        }, outgoingDataBuffer, parseMessage(outgoingDataBuffer));
+        console.dir({ send: parseMessage(outgoingDataBuffer) });
+        this.ws.send(outgoingDataBuffer);
     }
 
-    sendMessageToDriver(requestId, message) {
-        const bufferResponse = constructMessage(requestId, message)
-        setTimeout(() => {
-            this.stream._write(new Buffer(bufferResponse), null, () => null)
-        }, 1);
-    }
-
-    sendUint8ArrayToDriver(buffer) {
-        setTimeout(() => {
-            this.stream._write(new Buffer(buffer), null, () => null)
-        }, 1);
+    async forwardMessagesToDriver() {
+        for await (const message of this.wsReader) {
+            console.dir({ recv: parseMessage(message) });
+            this.stream._write(new Buffer(message), null, () => null)
+        }
     }
 }
 
@@ -139,11 +133,7 @@ function parseMessage(message: Uint8Array) {
     }
 }
 
-export let socket: FakeSocket | null = null;
-
 export function createConnection(options) {
-    if (socket == null) {
-        socket = new FakeSocket(options);
-    }
+    const socket = new FakeSocket(options);
     return socket;
 }

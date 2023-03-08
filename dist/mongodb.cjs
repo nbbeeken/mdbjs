@@ -25013,25 +25013,26 @@ exports.EventEmitter = EventEmitter;
 /*!**********************!*\
   !*** ./src/index.ts ***!
   \**********************/
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.setupHook = exports.hooks = exports.BSON = exports.MongoClient = void 0;
-var mongodb_1 = __webpack_require__(/*! mongodb */ "./node_modules/mongodb/lib/index.js");
-Object.defineProperty(exports, "MongoClient", ({ enumerable: true, get: function () { return mongodb_1.MongoClient; } }));
-Object.defineProperty(exports, "BSON", ({ enumerable: true, get: function () { return mongodb_1.BSON; } }));
-/** @internal */
-exports.hooks = {
-    fromDriver: async () => { },
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
-/** @public */
-async function setupHook(userHooks) {
-    exports.hooks.fromDriver = userHooks.fromDriver;
-    return exports.hooks;
-}
-exports.setupHook = setupHook;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+__exportStar(__webpack_require__(/*! mongodb */ "./node_modules/mongodb/lib/index.js"), exports);
 
 
 /***/ }),
@@ -25382,11 +25383,11 @@ exports.randomBytes = randomBytes;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.createConnection = exports.socket = exports.OP_MSG = void 0;
+exports.createConnection = exports.FakeSocket = exports.OP_MSG = void 0;
 const mongodb_1 = __webpack_require__(/*! mongodb */ "./node_modules/mongodb/lib/index.js");
 const buffer_1 = __webpack_require__(/*! ./buffer */ "./src/modules/buffer.ts");
 const stream_1 = __webpack_require__(/*! ./stream */ "./src/modules/stream.ts");
-const index_1 = __webpack_require__(/*! ../index */ "./src/index.ts");
+const ws_1 = __webpack_require__(/*! ../ws */ "./src/ws.ts");
 exports.OP_MSG = 2013;
 class FakeSocket extends stream_1.Duplex {
     options;
@@ -25394,24 +25395,30 @@ class FakeSocket extends stream_1.Duplex {
     keepAliveDelay;
     timeoutMS;
     noDelay;
+    /** We make one websocket for every socket in the driver. Now we do not need multiplexing */
+    ws;
+    wsReader;
+    forwarder;
+    remoteAddress;
+    remotePort;
     constructor(options) {
         super();
         this.options = options;
+        this.remoteAddress = options.host;
+        this.remotePort = options.port;
+        this.ws = new ws_1.WebbySocket(options);
+        this.wsReader = this.ws[Symbol.asyncIterator]();
+        this.forwarder = this.forwardMessagesToDriver();
     }
-    remoteAddress = 'iLoveJavaScript';
-    remotePort = 2390;
     // TCP specific
     setKeepAlive(enable, initialDelayMS) {
-        console.info(`setKeepAlive(${enable}, ${initialDelayMS})`);
         this.isKeptAlive = enable;
         this.keepAliveDelay = initialDelayMS;
     }
     setTimeout(timeoutMS) {
-        console.info(`setTimeout(${timeoutMS})`);
         this.timeoutMS = timeoutMS;
     }
     setNoDelay(noDelay) {
-        console.info(`setNoDelay(${noDelay})`);
         this.noDelay = noDelay;
     }
     // MessageStream requirement
@@ -25438,27 +25445,17 @@ class FakeSocket extends stream_1.Duplex {
         setTimeout(callback, 1);
     }
     push(outgoingDataBuffer) {
-        index_1.hooks.fromDriver(async (reqId, m) => {
-            if (ArrayBuffer.isView(reqId)) {
-                this.sendUint8ArrayToDriver(reqId);
-            }
-            else {
-                this.sendMessageToDriver(reqId, m);
-            }
-        }, outgoingDataBuffer, parseMessage(outgoingDataBuffer));
+        console.dir({ send: parseMessage(outgoingDataBuffer) });
+        this.ws.send(outgoingDataBuffer);
     }
-    sendMessageToDriver(requestId, message) {
-        const bufferResponse = constructMessage(requestId, message);
-        setTimeout(() => {
-            this.stream._write(new buffer_1.Buffer(bufferResponse), null, () => null);
-        }, 1);
-    }
-    sendUint8ArrayToDriver(buffer) {
-        setTimeout(() => {
-            this.stream._write(new buffer_1.Buffer(buffer), null, () => null);
-        }, 1);
+    async forwardMessagesToDriver() {
+        for await (const message of this.wsReader) {
+            console.dir({ recv: parseMessage(message) });
+            this.stream._write(new buffer_1.Buffer(message), null, () => null);
+        }
     }
 }
+exports.FakeSocket = FakeSocket;
 function constructMessage(requestId, response) {
     const responseBytes = mongodb_1.BSON.serialize(response);
     const payloadTypeBuffer = new Uint8Array([0]);
@@ -25510,12 +25507,9 @@ function parseMessage(message) {
         };
     }
 }
-exports.socket = null;
 function createConnection(options) {
-    if (exports.socket == null) {
-        exports.socket = new FakeSocket(options);
-    }
-    return exports.socket;
+    const socket = new FakeSocket(options);
+    return socket;
 }
 exports.createConnection = createConnection;
 
@@ -25672,6 +25666,78 @@ function promisify(fn) {
     };
 }
 exports.promisify = promisify;
+
+
+/***/ }),
+
+/***/ "./src/ws.ts":
+/*!*******************!*\
+  !*** ./src/ws.ts ***!
+  \*******************/
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.WebbySocket = void 0;
+function makeNotifier() {
+    /** @type {() => void} */
+    let resolve;
+    /** @type {(error: Error) => void} */
+    let reject;
+    /** @type {Promise<void>} */
+    const p = new Promise((pRes, pRej) => {
+        resolve = pRes;
+        reject = pRej;
+    });
+    // @ts-ignore
+    return { p, resolve, reject };
+}
+class WebbySocket {
+    socket;
+    messages = [];
+    notify;
+    constructor({ host = 'localhost', port = 9080 } = {}) {
+        this.socket = new WebSocket(`ws://${host}:${port}/ws`);
+        this.socket.addEventListener('close', () => this.#onClose());
+        this.socket.addEventListener('error', () => this.#onError());
+        this.socket.addEventListener('message', message => this.#onMessage(message));
+        this.socket.addEventListener('open', () => this.#onOpen());
+        this.socket.binaryType = 'arraybuffer';
+        this.notify = makeNotifier();
+    }
+    #onClose() {
+        console.log('WebbySocket: #onClose()');
+    }
+    #onError() {
+        console.log('WebbySocket: #onError()');
+    }
+    #onMessage(message) {
+        console.log('WebbySocket: #onMessage()');
+        this.messages.push(new Uint8Array(message.data));
+        this.notify.resolve();
+    }
+    #onOpen() {
+        console.log('WebbySocket: #onOpen()');
+    }
+    async *[Symbol.asyncIterator]() {
+        await this.notify.p;
+        this.notify = makeNotifier();
+        while (this.messages.length) {
+            const value = this.messages.shift();
+            if (value) {
+                yield value;
+            }
+            await this.notify.p;
+            this.notify = makeNotifier();
+        }
+        throw new Error('socket had no messages after notify.resolve() was called');
+    }
+    send(buffer) {
+        this.socket.send(buffer);
+    }
+}
+exports.WebbySocket = WebbySocket;
 
 
 /***/ }),
