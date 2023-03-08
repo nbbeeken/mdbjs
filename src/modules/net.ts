@@ -5,6 +5,22 @@ import { WebbySocket } from '../ws'
 
 export const OP_MSG = 2013;
 
+const myHello = {
+    helloOk: true,
+    isWritablePrimary: true,
+    topologyVersion: { processId: new BSON.ObjectId(), counter: 0 },
+    maxBsonObjectSize: 16777216,
+    maxMessageSizeBytes: 48000000,
+    maxWriteBatchSize: 100000,
+    localTime: new Date(),
+    logicalSessionTimeoutMinutes: null,
+    connectionId: 85,
+    minWireVersion: 0,
+    maxWireVersion: 17,
+    readOnly: false,
+    ok: 1,
+};
+
 export class FakeSocket extends Duplex {
     options: { host: string };
     isKeptAlive: boolean;
@@ -67,32 +83,27 @@ export class FakeSocket extends Duplex {
         setTimeout(callback, 1)
     }
 
-    override push(outgoingDataBuffer) {
-        console.dir({ send: parseMessage(outgoingDataBuffer) });
+    override push(outgoingDataBuffer: Uint8Array) {
+        const outgoing = parseMessage(outgoingDataBuffer);
+        if (outgoing.doc.hello || outgoing.doc.ismaster) {
+            this.ws.sendFakeMessage(outgoing.requestId, myHello)
+            return;
+        }
+        console.dir({ send: outgoing });
         this.ws.send(outgoingDataBuffer);
     }
 
     async forwardMessagesToDriver() {
         for await (const message of this.wsReader) {
-            console.dir({ recv: parseMessage(message) });
+            const incoming = parseMessage(message)
+            if (!incoming.doc.isWritablePrimary) {
+                console.dir({ recv: incoming });
+            }
             this.stream._write(new Buffer(message), null, () => null)
         }
     }
 }
 
-function constructMessage(requestId, response) {
-    const responseBytes = BSON.serialize(response);
-    const payloadTypeBuffer = new Uint8Array([0]);
-    const headers = new DataView(new ArrayBuffer(20))
-    headers.setInt32(4, 0, true);
-    headers.setInt32(8, requestId, true);
-    headers.setInt32(12, OP_MSG, true);
-    headers.setInt32(16, 0, true);
-    const bufferResponse = webByteUtils.concat([new Uint8Array(headers.buffer), payloadTypeBuffer, responseBytes]);
-    const dv = new DataView(bufferResponse.buffer, bufferResponse.byteOffset, bufferResponse.byteLength);
-    dv.setInt32(0, bufferResponse.byteLength, true);
-    return new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
-}
 
 function parseMessage(message: Uint8Array) {
     const dv = new DataView(message.buffer, message.byteOffset, message.byteLength);

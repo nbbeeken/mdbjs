@@ -1,4 +1,7 @@
-function makeNotifier<T>(): {p: Promise<T>, resolve: (value: T) => void; reject: (reason?: Error) => void } {
+import { BSON } from "mongodb";
+import { webByteUtils } from "./modules/buffer";
+
+function makeNotifier<T>(): { p: Promise<T>, resolve: (value: T) => void; reject: (reason?: Error) => void } {
     /** @type {() => void} */
     let resolve
     /** @type {(error: Error) => void} */
@@ -33,7 +36,7 @@ export class WebbySocket {
     #onError() {
         console.log('WebbySocket: #onError()');
     }
-    #onMessage(message: MessageEvent<ArrayBuffer>) {
+    #onMessage(message: { data: ArrayBuffer }) {
         console.log('WebbySocket: #onMessage()');
         this.messages.push(new Uint8Array(message.data))
         this.notify.resolve();
@@ -45,7 +48,7 @@ export class WebbySocket {
     async *[Symbol.asyncIterator](): AsyncGenerator<Uint8Array> {
         await this.notify.p;
         this.notify = makeNotifier();
-        while(this.messages.length) {
+        while (this.messages.length) {
             const value = this.messages.shift();
             if (value) {
                 yield value
@@ -56,7 +59,28 @@ export class WebbySocket {
         throw new Error('socket had no messages after notify.resolve() was called')
     }
 
+    sendFakeMessage(reqId: number, data: Record<string, any>) {
+        setTimeout(() => {
+            this.#onMessage({ data: constructMessage(reqId, data).buffer });
+        }, 1);
+    }
+
     send(buffer: Uint8Array) {
         this.socket.send(buffer);
     }
+}
+
+export const OP_MSG = 2013;
+function constructMessage(requestId, response) {
+    const responseBytes = BSON.serialize(response);
+    const payloadTypeBuffer = new Uint8Array([0]);
+    const headers = new DataView(new ArrayBuffer(20))
+    headers.setInt32(4, 0, true);
+    headers.setInt32(8, requestId, true);
+    headers.setInt32(12, OP_MSG, true);
+    headers.setInt32(16, 0, true);
+    const bufferResponse = webByteUtils.concat([new Uint8Array(headers.buffer), payloadTypeBuffer, responseBytes]);
+    const dv = new DataView(bufferResponse.buffer, bufferResponse.byteOffset, bufferResponse.byteLength);
+    dv.setInt32(0, bufferResponse.byteLength, true);
+    return new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
 }

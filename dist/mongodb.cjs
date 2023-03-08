@@ -25389,6 +25389,21 @@ const buffer_1 = __webpack_require__(/*! ./buffer */ "./src/modules/buffer.ts");
 const stream_1 = __webpack_require__(/*! ./stream */ "./src/modules/stream.ts");
 const ws_1 = __webpack_require__(/*! ../ws */ "./src/ws.ts");
 exports.OP_MSG = 2013;
+const myHello = {
+    helloOk: true,
+    isWritablePrimary: true,
+    topologyVersion: { processId: new mongodb_1.BSON.ObjectId(), counter: 0 },
+    maxBsonObjectSize: 16777216,
+    maxMessageSizeBytes: 48000000,
+    maxWriteBatchSize: 100000,
+    localTime: new Date(),
+    logicalSessionTimeoutMinutes: null,
+    connectionId: 85,
+    minWireVersion: 0,
+    maxWireVersion: 17,
+    readOnly: false,
+    ok: 1,
+};
 class FakeSocket extends stream_1.Duplex {
     options;
     isKeptAlive;
@@ -25445,30 +25460,25 @@ class FakeSocket extends stream_1.Duplex {
         setTimeout(callback, 1);
     }
     push(outgoingDataBuffer) {
-        console.dir({ send: parseMessage(outgoingDataBuffer) });
+        const outgoing = parseMessage(outgoingDataBuffer);
+        if (outgoing.doc.hello || outgoing.doc.ismaster) {
+            this.ws.sendFakeMessage(outgoing.requestId, myHello);
+            return;
+        }
+        console.dir({ send: outgoing });
         this.ws.send(outgoingDataBuffer);
     }
     async forwardMessagesToDriver() {
         for await (const message of this.wsReader) {
-            console.dir({ recv: parseMessage(message) });
+            const incoming = parseMessage(message);
+            if (!incoming.doc.isWritablePrimary) {
+                console.dir({ recv: incoming });
+            }
             this.stream._write(new buffer_1.Buffer(message), null, () => null);
         }
     }
 }
 exports.FakeSocket = FakeSocket;
-function constructMessage(requestId, response) {
-    const responseBytes = mongodb_1.BSON.serialize(response);
-    const payloadTypeBuffer = new Uint8Array([0]);
-    const headers = new DataView(new ArrayBuffer(20));
-    headers.setInt32(4, 0, true);
-    headers.setInt32(8, requestId, true);
-    headers.setInt32(12, exports.OP_MSG, true);
-    headers.setInt32(16, 0, true);
-    const bufferResponse = buffer_1.webByteUtils.concat([new Uint8Array(headers.buffer), payloadTypeBuffer, responseBytes]);
-    const dv = new DataView(bufferResponse.buffer, bufferResponse.byteOffset, bufferResponse.byteLength);
-    dv.setInt32(0, bufferResponse.byteLength, true);
-    return new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
-}
 function parseMessage(message) {
     const dv = new DataView(message.buffer, message.byteOffset, message.byteLength);
     const messageHeader = {
@@ -25674,12 +25684,14 @@ exports.promisify = promisify;
 /*!*******************!*\
   !*** ./src/ws.ts ***!
   \*******************/
-/***/ ((__unused_webpack_module, exports) => {
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.WebbySocket = void 0;
+exports.OP_MSG = exports.WebbySocket = void 0;
+const mongodb_1 = __webpack_require__(/*! mongodb */ "./node_modules/mongodb/lib/index.js");
+const buffer_1 = __webpack_require__(/*! ./modules/buffer */ "./src/modules/buffer.ts");
 function makeNotifier() {
     /** @type {() => void} */
     let resolve;
@@ -25733,11 +25745,30 @@ class WebbySocket {
         }
         throw new Error('socket had no messages after notify.resolve() was called');
     }
+    sendFakeMessage(reqId, data) {
+        setTimeout(() => {
+            this.#onMessage({ data: constructMessage(reqId, data).buffer });
+        }, 1);
+    }
     send(buffer) {
         this.socket.send(buffer);
     }
 }
 exports.WebbySocket = WebbySocket;
+exports.OP_MSG = 2013;
+function constructMessage(requestId, response) {
+    const responseBytes = mongodb_1.BSON.serialize(response);
+    const payloadTypeBuffer = new Uint8Array([0]);
+    const headers = new DataView(new ArrayBuffer(20));
+    headers.setInt32(4, 0, true);
+    headers.setInt32(8, requestId, true);
+    headers.setInt32(12, exports.OP_MSG, true);
+    headers.setInt32(16, 0, true);
+    const bufferResponse = buffer_1.webByteUtils.concat([new Uint8Array(headers.buffer), payloadTypeBuffer, responseBytes]);
+    const dv = new DataView(bufferResponse.buffer, bufferResponse.byteOffset, bufferResponse.byteLength);
+    dv.setInt32(0, bufferResponse.byteLength, true);
+    return new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
+}
 
 
 /***/ }),
