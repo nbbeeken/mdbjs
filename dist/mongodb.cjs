@@ -25389,7 +25389,7 @@ const buffer_1 = __webpack_require__(/*! ./buffer */ "./src/modules/buffer.ts");
 const stream_1 = __webpack_require__(/*! ./stream */ "./src/modules/stream.ts");
 const ws_1 = __webpack_require__(/*! ../ws */ "./src/ws.ts");
 exports.OP_MSG = 2013;
-const myHello = {
+const myHello = () => ({
     helloOk: true,
     isWritablePrimary: true,
     topologyVersion: { processId: new mongodb_1.BSON.ObjectId(), counter: 0 },
@@ -25403,7 +25403,7 @@ const myHello = {
     maxWireVersion: 17,
     readOnly: false,
     ok: 1,
-};
+});
 class FakeSocket extends stream_1.Duplex {
     options;
     isKeptAlive;
@@ -25462,7 +25462,7 @@ class FakeSocket extends stream_1.Duplex {
     push(outgoingDataBuffer) {
         const outgoing = parseMessage(outgoingDataBuffer);
         if (outgoing.doc.hello || outgoing.doc.ismaster) {
-            this.ws.sendFakeMessage(outgoing.requestId, myHello);
+            this.ws.sendFakeMessage(outgoing.requestId, myHello());
             return;
         }
         console.dir({ send: outgoing });
