@@ -22,6 +22,7 @@ export class WebbySocket {
 
     constructor({ host = 'localhost', port = 9080 } = {}) {
         // this.socket = new WebSocket(`ws://${host}:${port}/ws`);
+        console.log("creating webbysocket");
         this.socket = new WebSocket(`ws://localhost:9080/ws`);
         this.socket.addEventListener('close', () => this.#onClose());
         this.socket.addEventListener('error', () => this.#onError());
@@ -73,6 +74,7 @@ export class WebbySocket {
 
 export const OP_MSG = 2013;
 function constructMessage(requestId, response) {
+    console.log("constructingmessage");
     const responseBytes = BSON.serialize(response);
     const payloadTypeBuffer = new Uint8Array([0]);
     const headers = new DataView(new ArrayBuffer(20))

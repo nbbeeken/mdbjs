@@ -19,6 +19,7 @@ export class Duplex extends EventEmitter<any> {
     writableEnded: boolean = false;
     stream: any;
     constructor() {
+        console.log("creating duplex");
         super();
     }
 

@@ -35,6 +35,7 @@ export class FakeSocket extends Duplex {
     remotePort: number;
 
     constructor(options: { port: number; host: string }) {
+        console.log("creating fakesocket");
         super();
         this.options = options;
         this.remoteAddress = options.host;
@@ -145,6 +146,7 @@ function parseMessage(message: Uint8Array) {
 }
 
 export function createConnection(options) {
+    console.log("createconnection");
     const socket = new FakeSocket(options);
     return socket;
 }
