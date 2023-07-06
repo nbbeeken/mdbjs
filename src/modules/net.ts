@@ -1,7 +1,7 @@
 import { BSON } from "mongodb";
 import { webByteUtils, Buffer } from "./buffer";
 import { Duplex } from "./stream";
-import { WebbySocket } from '../ws'
+import { SingularSocket, SocketInterface } from '../ws';
 
 export const OP_MSG = 2013;
 
@@ -21,29 +21,37 @@ const myHello = () => ({
     ok: 1,
 });
 
-export class FakeSocket extends Duplex {
-    options: { host: string };
+const streams = new Map<string,SocketInstance>;
+//<k,v> -> <SocketInstance.identifier,SocketInstance>
+export default streams;
+
+export class SocketInstance extends Duplex {
+    options: { port: number; host: string };
     isKeptAlive: boolean;
     keepAliveDelay: number;
     timeoutMS: number;
     noDelay: boolean;
     /** We make one websocket for every socket in the driver. Now we do not need multiplexing */
-    ws: WebbySocket;
+    ws: SocketInterface;
     wsReader: AsyncGenerator<Uint8Array, any, unknown>;
     forwarder: Promise<void>;
     remoteAddress: string;
     remotePort: number;
+    identifier: string;
 
     constructor(options: { port: number; host: string }) {
-        console.log("creating fakesocket");
+        console.log("creating SocketInstance");
         super();
         this.options = options;
         this.remoteAddress = options.host;
         this.remotePort = options.port;
-        this.ws = new WebbySocket(options);
+        this.ws = SingularSocket;
         this.wsReader = this.ws[Symbol.asyncIterator]();
-        this.forwarder = this.forwardMessagesToDriver()
+        this.forwarder = this.forwardMessagesToDriver();
+        this.identifier = generateIdentifier(this.options);
+        console.log("finished creating SocketInstance");
     }
+
     // TCP specific
     setKeepAlive(enable: boolean, initialDelayMS: number) {
         this.isKeptAlive = enable;
@@ -85,9 +93,12 @@ export class FakeSocket extends Duplex {
     }
 
     override push(outgoingDataBuffer: Uint8Array) {
+        console.log("pushing message using override");
         const outgoing = parseMessage(outgoingDataBuffer);
         if (outgoing.doc.hello || outgoing.doc.ismaster) {
+            console.log("before sending fake message");
             this.ws.sendFakeMessage(outgoing.requestId, myHello())
+            console.log("after sending fake message");
             return;
         }
         console.dir({ send: outgoing });
@@ -95,6 +106,7 @@ export class FakeSocket extends Duplex {
     }
 
     async forwardMessagesToDriver() {
+        console.log("forwarding messages to driver");
         for await (const message of this.wsReader) {
             const incoming = parseMessage(message)
             if (!incoming.doc.isWritablePrimary) {
@@ -145,8 +157,26 @@ function parseMessage(message: Uint8Array) {
     }
 }
 
+function generateIdentifier(options: { port: number; host: string }) {
+    return String(options.port) + options.host;
+}
+
 export function createConnection(options) {
-    console.log("createconnection");
-    const socket = new FakeSocket(options);
-    return socket;
+    //options here represent cluster connection info that will be stored in SingularSocket
+    // console.log("createconnection");
+    // console.log(SocketOptions);
+    // console.log(options);
+    
+    //will pass in port and host (browser thinks it is where cluster is located)
+    //add port and host info to data message
+    //will return singular port and host
+    const identifier = generateIdentifier(options);
+    console.log("createconnection",streams);
+    if (streams.has(identifier)) {
+        return streams.get(identifier);
+    } else {
+        const socket = new SocketInstance(options);
+        streams.set(identifier,socket);
+        return socket;
+    }
 }

@@ -2,11 +2,15 @@
 
 const path = require("path");
 
-const isProduction = process.env.NODE_ENV == "production";
+// const isProduction = process.env.NODE_ENV == "production";
+const isProduction = false;
 
 const config = {
   entry: "./src/index.ts",
   devtool: 'source-map',
+  optimization: {
+    minimize: false
+  },
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'mongodb.cjs',
@@ -32,13 +36,20 @@ const config = {
     alias: {
       url: path.resolve(__dirname, 'src/modules/url.ts'),
       net: path.resolve(__dirname, 'src/modules/net.ts'),
-      timers: path.resolve(__dirname, 'src/modules/timers.ts'),
+      // timers: path.resolve(__dirname, 'src/modules/timers.ts'),
+      timers: require.resolve('timers-browserify'),
       stream: path.resolve(__dirname, 'src/modules/stream.ts'),
-      buffer: path.resolve(__dirname, 'src/modules/buffer.ts'),
-      util: path.resolve(__dirname, 'src/modules/util.ts'),
+      // stream: require.resolve('stream-browserify'),
+      // buffer: path.resolve(__dirname, 'src/modules/buffer.ts'),
+      buffer: require.resolve('buffer'),
+      // util: path.resolve(__dirname, 'src/modules/util.ts'),
+      util: require.resolve('util/'),
       os: path.resolve(__dirname, 'src/modules/os.ts'),
+      // os: require.resolve('os-browserify'),
       process: path.resolve(__dirname, 'src/modules/process.ts'),
-      crypto: path.resolve(__dirname, 'src/modules/crypto.ts'),
+      // process: require.resolve('process'),
+      // crypto: path.resolve(__dirname, 'src/modules/crypto.ts'),
+      crypto: require.resolve('crypto-browserify'),
     },
     fallback: {
       kerberos: false,
