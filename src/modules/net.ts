@@ -45,7 +45,7 @@ export class SocketInstance extends Duplex {
         this.options = options;
         this.remoteAddress = options.host;
         this.remotePort = options.port;
-        this.ws = SingularSocket;
+        this.ws = new SocketInterface();
         this.wsReader = this.ws[Symbol.asyncIterator]();
         this.forwarder = this.forwardMessagesToDriver();
         this.identifier = options.identifier;
