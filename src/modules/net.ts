@@ -21,7 +21,7 @@ const myHello = () => ({
     ok: 1,
 });
 
-const streams = new Map<string,SocketInstance>;
+const streams = new Map<number,SocketInstance>;
 //<k,v> -> <SocketInstance.identifier,SocketInstance>
 export default streams;
 
@@ -37,9 +37,9 @@ export class SocketInstance extends Duplex {
     forwarder: Promise<void>;
     remoteAddress: string;
     remotePort: number;
-    identifier: string;
+    identifier: number;
 
-    constructor(options: { port: number; host: string }) {
+    constructor(options: { port: number; host: string; identifier: number }) {
         console.log("creating SocketInstance");
         super();
         this.options = options;
@@ -48,7 +48,7 @@ export class SocketInstance extends Duplex {
         this.ws = SingularSocket;
         this.wsReader = this.ws[Symbol.asyncIterator]();
         this.forwarder = this.forwardMessagesToDriver();
-        this.identifier = generateIdentifier(this.options);
+        this.identifier = options.identifier;
         console.log("finished creating SocketInstance");
     }
 
@@ -157,9 +157,14 @@ function parseMessage(message: Uint8Array) {
     }
 }
 
-function generateIdentifier(options: { port: number; host: string }) {
-    return String(options.port) + options.host;
+function* incrementalNumberGenerator() {
+    let id = 1;
+    while (true) {
+        yield id++;
+    }
 }
+
+let generateIdentifier = incrementalNumberGenerator();
 
 export function createConnection(options) {
     //options here represent cluster connection info that will be stored in SingularSocket
@@ -170,13 +175,12 @@ export function createConnection(options) {
     //will pass in port and host (browser thinks it is where cluster is located)
     //add port and host info to data message
     //will return singular port and host
-    const identifier = generateIdentifier(options);
+    const identifier = generateIdentifier.next().value;
+    options.identifier = identifier;
+    const socket = new SocketInstance(options);
     console.log("createconnection",streams);
-    if (streams.has(identifier)) {
-        return streams.get(identifier);
-    } else {
-        const socket = new SocketInstance(options);
+    if (identifier) {
         streams.set(identifier,socket);
-        return socket;
     }
+    return socket;
 }

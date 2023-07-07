@@ -100,6 +100,6 @@ function constructMessage(requestId, response) {
     return new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
 }
 
-const SocketOptions = { port: 9080, host: 'localhost' }; //web socket connection
+const SocketOptions = { port: 9080, host: '127.0.0.1' }; //web socket connection
 export const SingularSocket = new SocketInterface(SocketOptions);
 // export default SingularSocket;
