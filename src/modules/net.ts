@@ -97,7 +97,7 @@ export class SocketInstance extends Duplex {
         const outgoing = parseMessage(outgoingDataBuffer);
         if (outgoing.doc.hello || outgoing.doc.ismaster) {
             console.log("before sending fake message");
-            this.ws.sendFakeMessage(outgoing.requestId, myHello())
+            this.ws.sendFakeMessage(outgoing.requestId, this.identifier, myHello())
             console.log("after sending fake message");
             return;
         }
@@ -109,9 +109,10 @@ export class SocketInstance extends Duplex {
         console.log("forwarding messages to driver");
         for await (const message of this.wsReader) {
             const incoming = parseMessage(message)
-            if (!incoming.doc.isWritablePrimary) {
-                console.dir({ recv: incoming });
-            }
+            // if (!incoming.doc.isWritablePrimary) {
+            //     console.dir({ recv: incoming });
+            // }
+            console.log("message:",incoming);
             this.stream._write(new Buffer(message), null, () => null)
         }
     }
@@ -125,8 +126,10 @@ function parseMessage(message: Uint8Array) {
         requestId: dv.getInt32(4, true),
         responseTo: dv.getInt32(8, true),
         opCode: dv.getInt32(12, true),
-        flags: dv.getInt32(16, true)
+        flags: dv.getInt32(16, true),
+        // streamId: dv.getInt32(20,true)
     };
+    console.log("message HEADER!",messageHeader);
 
     if (messageHeader.opCode !== OP_MSG) {
         const nsNullTerm = message.indexOf(0x00, 20);
@@ -136,6 +139,9 @@ function parseMessage(message: Uint8Array) {
         const numberToReturn = dv.getInt32(20 + nsLen + 4, true);
         const docStart = 20 + nsLen + 4 + 4;
         const docLen = dv.getInt32(docStart, true);
+        console.log("messageheader:",messageHeader);
+        console.log("message:",message);
+        console.log("doc:", message.subarray(docStart, docStart + docLen));
         const doc = BSON.deserialize(message.subarray(docStart, docStart + docLen));
         return {
             ...messageHeader,
@@ -145,6 +151,7 @@ function parseMessage(message: Uint8Array) {
             doc
         };
     } else {
+        console.log("parsing message in else");
         const payloadType = dv.getUint8(20);
         const docStart = 20 + 1;
         const docLen = dv.getUint32(docStart, true);

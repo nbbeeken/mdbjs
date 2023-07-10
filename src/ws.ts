@@ -65,10 +65,10 @@ export class SocketInterface {
         throw new Error('socket had no messages after notify.resolve() was called')
     }
 
-    sendFakeMessage(reqId: number, data: Record<string, any>) {
+    sendFakeMessage(reqId: number, streamId: number, data: Record<string, any>) {
         console.log("sending fake message");
         setTimeout(() => {
-            this.#onMessage({ data: constructMessage(reqId, data).buffer });
+            this.#onMessage({ data: constructMessage(reqId, streamId, data).buffer });
         }, 1);
     }
 
@@ -79,21 +79,24 @@ export class SocketInterface {
         //bson has uuid class
         //or have a counter that starts at 1
         //every singlem esage that system sends will have unique identifer
-        console.log("sending message using send functino");
+        console.log("sending message using send function");
         this.socket.send(buffer);
     }
 }
 
 export const OP_MSG = 2013;
-function constructMessage(requestId, response) {
+function constructMessage(requestId, streamId, response) {
     console.log("constructingmessage");
     const responseBytes = BSON.serialize(response);
     const payloadTypeBuffer = new Uint8Array([0]);
     const headers = new DataView(new ArrayBuffer(20))
+    // const headers = new DataView(new ArrayBuffer(50))
+    // headers.setInt32(4,streamId,true);
     headers.setInt32(4, 0, true);
     headers.setInt32(8, requestId, true);
     headers.setInt32(12, OP_MSG, true);
     headers.setInt32(16, 0, true);
+    // headers.setInt32(20, streamId,true);
     const bufferResponse = webByteUtils.concat([new Uint8Array(headers.buffer), payloadTypeBuffer, responseBytes]);
     const dv = new DataView(bufferResponse.buffer, bufferResponse.byteOffset, bufferResponse.byteLength);
     dv.setInt32(0, bufferResponse.byteLength, true);
