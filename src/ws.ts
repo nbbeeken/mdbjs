@@ -1,5 +1,6 @@
 import { BSON } from "mongodb";
 import { webByteUtils } from "./modules/buffer";
+import { LaurelsSocket } from "./LaurelsSocket";
 
 function makeNotifier<T>(): { p: Promise<T>, resolve: (value: T) => void; reject: (reason?: Error) => void } {
     /** @type {() => void} */
@@ -15,39 +16,44 @@ function makeNotifier<T>(): { p: Promise<T>, resolve: (value: T) => void; reject
     return { p, resolve, reject }
 }
 
-export class SocketInterface {
+export class MessageRelay {
     socket: WebSocket;
+    socket2: LaurelsSocket;
     messages: Array<Uint8Array> = [];
     notify: ReturnType<typeof makeNotifier<void>>;
     url: string;
 
     constructor({ host = 'localhost', port = 9080 } = {}) {
         this.url = `ws://${host}:${port}/ws`;
-        this.socket = new WebSocket(this.url);
-        console.log("creating SocketInterface");
-        // this.socket = new WebSocket(`ws://localhost:9080/ws`);
-        this.socket.addEventListener('close', () => this.#onClose());
-        this.socket.addEventListener('error', () => this.#onError());
-        this.socket.addEventListener('message', message => this.#onMessage(message));
-        this.socket.addEventListener('open', () => this.#onOpen());
-        this.socket.binaryType = 'arraybuffer';
+        if ((typeof window === 'undefined')) {
+            this.socket = new WebSocket(this.url);
+            // this.socket = new WebSocket(`ws://localhost:9080/ws`);
+            this.socket.addEventListener('close', () => this.#onClose());
+            this.socket.addEventListener('error', () => this.#onError());
+            this.socket.addEventListener('message', message => this.#onMessage(message));
+            this.socket.addEventListener('open', () => this.#onOpen());
+            this.socket.binaryType = 'arraybuffer';
+        } else {
+            this.socket2 = new LaurelsSocket();
+        }
+        console.log("creating MessageRelay");
         this.notify = makeNotifier<void>();
-        console.log("finished SocketInterface");
+        console.log("finished MessageRelay");
     }
 
     #onClose() {
-        console.log('SocketInterface: #onClose()');
+        console.log('MessageRelay: #onClose()');
     }
     #onError() {
-        console.log('SocketInterface: #onError()');
+        console.log('MessageRelay: #onError()');
     }
     #onMessage(message: { data: ArrayBuffer }) {
-        console.log('SocketInterface: #onMessage()');
+        console.log('MessageRelay: #onMessage()');
         this.messages.push(new Uint8Array(message.data))
         this.notify.resolve();
     }
     #onOpen() {
-        console.log('SocketInterface: #onOpen()');
+        console.log('MessageRelay: #onOpen()');
     }
 
     //listener
@@ -103,6 +109,7 @@ export function constructMessage(requestId, streamId, response) {
     const payloadTypeBuffer = new Uint8Array([0]);
     const headers = new DataView(new ArrayBuffer(20));
     // const headers = new DataView(new ArrayBuffer(50))
+    //add streamidentifier, host, and port
     // headers.setInt32(4,streamId,true);
     headers.setInt32(4, 0, true);
     headers.setInt32(8, requestId, true);
@@ -116,5 +123,5 @@ export function constructMessage(requestId, streamId, response) {
 }
 
 const SocketOptions = { port: 9080, host: '127.0.0.1' }; //web socket connection
-export const SingularSocket = new SocketInterface(SocketOptions);
+export const SingularSocket = new MessageRelay(SocketOptions);
 // export default SingularSocket;

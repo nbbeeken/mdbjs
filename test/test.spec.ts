@@ -1,6 +1,6 @@
 import "mocha";
 import { expect } from "chai";
-import { SingularSocket, SocketInterface } from '../src/ws';
+import { SingularSocket, MessageRelay, constructMessage } from '../src/ws';
 import { BSON } from "mongodb";
 import { webByteUtils } from "../src/modules/buffer";
 import { URL } from '../src/modules/url';
@@ -28,23 +28,28 @@ describe("Unit Tests:", () => {
     it('should have helloOk be true', function() {
       expect(parseInt(url.port)).to.equal(options.port);
     });
-
-    describe('TODO: client', function() {
-      const client = new MongoClient('mongodb://127.0.0.1:9080', { maxPoolSize: 2 });
-
-      it('should have helloOk be true', function() {
-        expect(client).to.equal(client);
-      });
-    });
-
-    // describe('constructMessage() outputs the correct message', function() {
-    //   it('should have helloOk be true', function() {
-    //     expect(SingularSocket.url).to.equal(`ws://${options.host}:${options.port}/ws`);
-    //   });
-    // });
   });
 })
 
 describe("Integration Tests:", () => {
+  const options = { port: 9080, host: '127.0.0.1' }; //web socket connection
 
+  describe('TODO: client', function() {
+    const client = new MongoClient('mongodb://127.0.0.1:9080', { maxPoolSize: 2 });
+    const { databases } = await client.db('admin').admin().listDatabases({ nameOnly: true });
+
+    it('should have helloOk be true', function() {
+      expect(client).to.equal(client);
+    });
+  });
+
+
+
+  describe('constructMessage() outputs the correct message', function() {
+    it('should have helloOk be true', function() {
+      const message = constructMessage(1,1,"hi");
+      expect(message).to.equal(message);
+      expect(SingularSocket.url).to.equal(`ws://${options.host}:${options.port}/ws`);
+    });
+  });
 })

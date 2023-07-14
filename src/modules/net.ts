@@ -1,7 +1,7 @@
 import { BSON } from "mongodb";
 import { webByteUtils, Buffer } from "./buffer";
 import { Duplex } from "./stream";
-import { SingularSocket, SocketInterface } from '../ws';
+import { SingularSocket, MessageRelay } from '../ws';
 
 export const OP_MSG = 2013;
 
@@ -32,7 +32,7 @@ export class SocketInstance extends Duplex {
     timeoutMS: number;
     noDelay: boolean;
     /** We make one websocket for every socket in the driver. Now we do not need multiplexing */
-    ws: SocketInterface;
+    ws: MessageRelay;
     wsReader: AsyncGenerator<Uint8Array, any, unknown>;
     forwarder: Promise<void>;
     remoteAddress: string;
@@ -45,7 +45,7 @@ export class SocketInstance extends Duplex {
         this.options = options;
         this.remoteAddress = options.host;
         this.remotePort = options.port;
-        this.ws = new SocketInterface();
+        this.ws = new MessageRelay();
         this.wsReader = this.ws[Symbol.asyncIterator]();
         this.forwarder = this.forwardMessagesToDriver();
         this.streamIdentifier = options.streamIdentifier;
@@ -66,7 +66,7 @@ export class SocketInstance extends Duplex {
         this.noDelay = noDelay;
     }
 
-    getSocketInterface() {
+    getMessageRelay() {
         return this.ws;
     }
 
