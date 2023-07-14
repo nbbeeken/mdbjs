@@ -4,10 +4,7 @@ class BrowserURL extends URL {
    * @param urlString
    */
   constructor(urlString: string) {
-      // console.log("modifying url");
       // //validate iLoveJS error
-      // console.log(urlString);
-      // console.log(urlString.slice(6));
       if (urlString.startsWith('iLoveJS')) {
         const modifiedString = "http" + urlString.slice(7);
         super(modifiedString);

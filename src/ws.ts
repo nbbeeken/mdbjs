@@ -19,9 +19,11 @@ export class SocketInterface {
     socket: WebSocket;
     messages: Array<Uint8Array> = [];
     notify: ReturnType<typeof makeNotifier<void>>;
+    url: string;
 
     constructor({ host = 'localhost', port = 9080 } = {}) {
-        this.socket = new WebSocket(`ws://${host}:${port}/ws`);
+        this.url = `ws://${host}:${port}/ws`;
+        this.socket = new WebSocket(this.url);
         console.log("creating SocketInterface");
         // this.socket = new WebSocket(`ws://localhost:9080/ws`);
         this.socket.addEventListener('close', () => this.#onClose());
@@ -82,14 +84,24 @@ export class SocketInterface {
         console.log("sending message using send function");
         this.socket.send(buffer);
     }
+
+    sendMessageWithHeader(buffer) {
+        console.log("sending message with header");
+        this.socket.send(buffer);
+    }
+
+    getUrl() {
+        return this.url;
+    }
 }
 
 export const OP_MSG = 2013;
-function constructMessage(requestId, streamId, response) {
+
+export function constructMessage(requestId, streamId, response) {
     console.log("constructingmessage");
     const responseBytes = BSON.serialize(response);
     const payloadTypeBuffer = new Uint8Array([0]);
-    const headers = new DataView(new ArrayBuffer(20))
+    const headers = new DataView(new ArrayBuffer(20));
     // const headers = new DataView(new ArrayBuffer(50))
     // headers.setInt32(4,streamId,true);
     headers.setInt32(4, 0, true);

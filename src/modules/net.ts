@@ -22,7 +22,7 @@ const myHello = () => ({
 });
 
 const streams = new Map<number,SocketInstance>;
-//<k,v> -> <SocketInstance.identifier,SocketInstance>
+//<k,v> -> <SocketInstance.streamIdentifier,SocketInstance>
 export default streams;
 
 export class SocketInstance extends Duplex {
@@ -37,9 +37,9 @@ export class SocketInstance extends Duplex {
     forwarder: Promise<void>;
     remoteAddress: string;
     remotePort: number;
-    identifier: number;
+    streamIdentifier: number;
 
-    constructor(options: { port: number; host: string; identifier: number }) {
+    constructor(options: { port: number; host: string; streamIdentifier: number }) {
         console.log("creating SocketInstance");
         super();
         this.options = options;
@@ -48,7 +48,7 @@ export class SocketInstance extends Duplex {
         this.ws = new SocketInterface();
         this.wsReader = this.ws[Symbol.asyncIterator]();
         this.forwarder = this.forwardMessagesToDriver();
-        this.identifier = options.identifier;
+        this.streamIdentifier = options.streamIdentifier;
         console.log("finished creating SocketInstance");
     }
 
@@ -64,6 +64,10 @@ export class SocketInstance extends Duplex {
 
     setNoDelay(noDelay: boolean) {
         this.noDelay = noDelay;
+    }
+
+    getSocketInterface() {
+        return this.ws;
     }
 
     // MessageStream requirement
@@ -97,11 +101,14 @@ export class SocketInstance extends Duplex {
         const outgoing = parseMessage(outgoingDataBuffer);
         if (outgoing.doc.hello || outgoing.doc.ismaster) {
             console.log("before sending fake message");
-            this.ws.sendFakeMessage(outgoing.requestId, this.identifier, myHello())
+            this.ws.sendFakeMessage(outgoing.requestId, this.streamIdentifier, myHello())
             console.log("after sending fake message");
             return;
         }
         console.dir({ send: outgoing });
+        // const headedMessage = addStreamIdentifier(outgoingDataBuffer, this.streamIdentifier);
+        // this.ws.sendMessageWithHeader(headedMessage);
+        console.log("message please");
         this.ws.send(outgoingDataBuffer);
     }
 
@@ -118,6 +125,17 @@ export class SocketInstance extends Duplex {
     }
 }
 
+function addStreamIdentifier(message: Uint8Array,streamIdentifier: number) {
+    console.log("constructingmessage");
+    const responseBytes = BSON.serialize(message);
+    const payloadTypeBuffer = new Uint8Array([0]);
+    const headers = new DataView(new ArrayBuffer(30));
+    headers.setInt32(0,streamIdentifier,true);
+    const bufferResponse = webByteUtils.concat([new Uint8Array(headers.buffer), payloadTypeBuffer, responseBytes]);
+    const dv = new DataView(bufferResponse.buffer, bufferResponse.byteOffset, bufferResponse.byteLength);
+    dv.setInt32(0, bufferResponse.byteLength, true);
+    return new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
+}
 
 function parseMessage(message: Uint8Array) {
     const dv = new DataView(message.buffer, message.byteOffset, message.byteLength);
