@@ -5,22 +5,6 @@ import { SingularSocket, MessageRelay } from '../ws';
 
 export const OP_MSG = 2013;
 
-const myHello = () => ({
-    helloOk: true,
-    isWritablePrimary: true,
-    topologyVersion: { processId: new BSON.ObjectId(), counter: 0 },
-    maxBsonObjectSize: 16777216,
-    maxMessageSizeBytes: 48000000,
-    maxWriteBatchSize: 100000,
-    localTime: new Date(),
-    logicalSessionTimeoutMinutes: null,
-    connectionId: 85,
-    minWireVersion: 0,
-    maxWireVersion: 17,
-    readOnly: false,
-    ok: 1,
-});
-
 const streams = new Map<number,SocketInstance>;
 //<k,v> -> <SocketInstance.streamIdentifier,SocketInstance>
 export default streams;
@@ -98,14 +82,14 @@ export class SocketInstance extends Duplex {
 
     override push(outgoingDataBuffer: Uint8Array) {
         console.log("pushing message using override");
-        const outgoing = parseMessage(outgoingDataBuffer);
-        if (outgoing.doc.hello || outgoing.doc.ismaster) {
-            console.log("before sending fake message");
-            this.ws.sendFakeMessage(outgoing.requestId, this.streamIdentifier, myHello())
-            console.log("after sending fake message");
-            return;
-        }
-        console.dir({ send: outgoing });
+        // const outgoing = parseMessage(outgoingDataBuffer);
+        // if (outgoing.doc.hello || outgoing.doc.ismaster) {
+        //     console.log("before sending fake message");
+        //     this.ws.sendFakeMessage(outgoing.requestId, this.streamIdentifier, myHello())
+        //     console.log("after sending fake message");
+        //     return;
+        // }
+        // console.dir({ send: outgoing });
         // const headedMessage = addStreamIdentifier(outgoingDataBuffer, this.streamIdentifier);
         // this.ws.sendMessageWithHeader(headedMessage);
         console.log("message please");
@@ -115,11 +99,11 @@ export class SocketInstance extends Duplex {
     async forwardMessagesToDriver() {
         console.log("forwarding messages to driver");
         for await (const message of this.wsReader) {
-            const incoming = parseMessage(message)
-            // if (!incoming.doc.isWritablePrimary) {
-            //     console.dir({ recv: incoming });
-            // }
-            console.log("message:",incoming);
+            // const incoming = parseMessage(message)
+            // // if (!incoming.doc.isWritablePrimary) {
+            // //     console.dir({ recv: incoming });
+            // // }
+            // console.log("message:",incoming);
             this.stream._write(new Buffer(message), null, () => null)
         }
     }
@@ -135,51 +119,6 @@ function addStreamIdentifier(message: Uint8Array,streamIdentifier: number) {
     const dv = new DataView(bufferResponse.buffer, bufferResponse.byteOffset, bufferResponse.byteLength);
     dv.setInt32(0, bufferResponse.byteLength, true);
     return new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
-}
-
-function parseMessage(message: Uint8Array) {
-    const dv = new DataView(message.buffer, message.byteOffset, message.byteLength);
-    const messageHeader = {
-        length: dv.getInt32(0, true),
-        requestId: dv.getInt32(4, true),
-        responseTo: dv.getInt32(8, true),
-        opCode: dv.getInt32(12, true),
-        flags: dv.getInt32(16, true),
-        // streamId: dv.getInt32(20,true)
-    };
-    console.log("message HEADER!",messageHeader);
-
-    if (messageHeader.opCode !== OP_MSG) {
-        const nsNullTerm = message.indexOf(0x00, 20);
-        const ns = webByteUtils.toUTF8(message.subarray(20, nsNullTerm));
-        const nsLen = nsNullTerm - 20 + 1;
-        const numberToSkip = dv.getInt32(20 + nsLen, true);
-        const numberToReturn = dv.getInt32(20 + nsLen + 4, true);
-        const docStart = 20 + nsLen + 4 + 4;
-        const docLen = dv.getInt32(docStart, true);
-        console.log("messageheader:",messageHeader);
-        console.log("message:",message);
-        console.log("doc:", message.subarray(docStart, docStart + docLen));
-        const doc = BSON.deserialize(message.subarray(docStart, docStart + docLen));
-        return {
-            ...messageHeader,
-            ns,
-            numberToSkip,
-            numberToReturn,
-            doc
-        };
-    } else {
-        console.log("parsing message in else");
-        const payloadType = dv.getUint8(20);
-        const docStart = 20 + 1;
-        const docLen = dv.getUint32(docStart, true);
-        const doc = BSON.deserialize(message.subarray(docStart, docStart + docLen));
-        return {
-            ...messageHeader,
-            payloadType,
-            doc
-        };
-    }
 }
 
 function* incrementalNumberGenerator() {

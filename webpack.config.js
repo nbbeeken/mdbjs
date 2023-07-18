@@ -34,7 +34,8 @@ const config = {
   resolve: {
     extensions: [".tsx", ".ts", ".jsx", ".js", "..."],
     alias: {
-      url: path.resolve(__dirname, 'src/modules/url.ts'),
+      // url: path.resolve(__dirname, 'src/modules/url.ts'),
+      url: require.resolve('whatwg-url'),
       net: path.resolve(__dirname, 'src/modules/net.ts'),
       // timers: path.resolve(__dirname, 'src/modules/timers.ts'),
       timers: require.resolve('timers-browserify'),
