@@ -2,6 +2,8 @@ import { BSON } from "mongodb";
 import { webByteUtils } from "./modules/buffer";
 import { LaurelsSocket } from "./LaurelsSocket";
 
+const WebSocket = isBrowser() ? globalThis.WebSocket : LaurelsSocket;
+
 function makeNotifier<T>(): { p: Promise<T>, resolve: (value: T) => void; reject: (reason?: Error) => void } {
     /** @type {() => void} */
     let resolve
@@ -42,19 +44,18 @@ export class MessageRelay {
 
     constructor({ host = 'localhost', port = 9080 } = {}) {
         this.url = `ws://${host}:${port}/ws`;
-        if (isBrowser()) {
-            console.log("browser form!");
+        // if (isBrowser()) {
+        //     console.log("browser form!");
             this.socket = new WebSocket(this.url);
-            // this.socket = new WebSocket(`ws://localhost:9080/ws`);
             this.socket.addEventListener('close', () => this.#onClose());
             this.socket.addEventListener('error', () => this.#onError());
             this.socket.addEventListener('message', message => this.#onMessage(message));
             this.socket.addEventListener('open', () => this.#onOpen());
-            this.socket.binaryType = 'arraybuffer';
-        } else {
-            console.log("testing form!");
-            this.socket = new LaurelsSocket();
-        }
+        // } else {
+        //     console.log("testing form");
+        //     this.socket = new LaurelsSocket();
+        // }
+        this.socket.binaryType = 'arraybuffer';
         this.notify = makeNotifier<void>();
         console.log("finished MessageRelay");
     }

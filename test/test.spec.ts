@@ -4,6 +4,7 @@ import { SingularSocket, MessageRelay} from '../src/ws';
 import { URL } from 'whatwg-url';
 import { MongoClient } from "../src/index";
 
+// describe("All test:")
 describe("Unit Tests:", () => {
   describe("Unit test sanity checks", () => {
     it("3 should not equal 1", () => {

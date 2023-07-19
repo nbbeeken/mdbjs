@@ -1,7 +1,8 @@
 export function hrtime() {
-    return [0, 0]
+    const currDate = new Date().getTime();
+    return [currDate / 1000, currDate % 1000];
 }
 
-export function nextTick(fn, ...args) {
-    setTimeout(fn, 1, ...args);
+export function nextTick(fn) {
+    queueMicrotask(fn);
 }

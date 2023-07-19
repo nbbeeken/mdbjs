@@ -50,6 +50,7 @@
     "set-immediate-shim": "^2.0.0",
     "stream-browserify": "^3.0.0",
     "timers-browserify": "^2.0.12",
-    "util": "^0.12.5"
+    "util": "^0.12.5",
+    "whatwg-url": "^13.0.0"
   }
 }

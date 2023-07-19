@@ -34,5 +34,8 @@ export class LaurelsSocket {
       type: K,
       listener: () => any,
       options?: boolean | AddEventListenerOptions): void {
+    const eventListener = {listener, options};
+    const eventListeners = this.eventListeners[type];
+    eventListeners.push(eventListener);
   }
 }
