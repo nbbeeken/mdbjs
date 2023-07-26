@@ -7,7 +7,7 @@ const isProduction = false;
 
 const config = {
   entry: "./src/index.ts",
-  devtool: 'source-map',
+  devtool: 'cheap-module-source-map',
   optimization: {
     minimize: false
   },
@@ -49,8 +49,8 @@ const config = {
       // os: require.resolve('os-browserify'),
       process: path.resolve(__dirname, 'src/modules/process.ts'),
       // process: require.resolve('process'),
-      // crypto: path.resolve(__dirname, 'src/modules/crypto.ts'),
-      crypto: require.resolve('crypto-browserify'),
+      crypto: path.resolve(__dirname, 'src/modules/crypto.ts'),
+      // crypto: require.resolve('crypto-browserify'),
     },
     fallback: {
       kerberos: false,

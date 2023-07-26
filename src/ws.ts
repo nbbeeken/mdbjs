@@ -19,24 +19,16 @@ function makeNotifier<T>(): { p: Promise<T>, resolve: (value: T) => void; reject
 }
 
 function isBrowser() {
-    // Check if the environment is Node.js
-    if (typeof process === "object" && process.title === 'node'){
-        console.log("environment is Node.js -> not browser");
+    if ((typeof process === "object" && process.title === 'node') || (typeof importScripts === "function")) {
         return false;
     }
-    // Check if the environment is a Service worker
-    if (typeof importScripts === "function") {
-        console.log('env is service worker -> not browser');
-        return false;
-    }
-    // Check if the environment is a Browser
     if ((typeof window === "object")) {
-        console.log("environment is browser");
         return true;
     }
 }
 
-export class MessageRelay {
+export class SocketWrapper {
+    socketMode: string;
     socket: WebSocket | LaurelsSocket;
     messages: Array<Uint8Array> = [];
     notify: ReturnType<typeof makeNotifier<void>>;
@@ -44,35 +36,31 @@ export class MessageRelay {
 
     constructor({ host = 'localhost', port = 9080 } = {}) {
         this.url = `ws://${host}:${port}/ws`;
-        // if (isBrowser()) {
-        //     console.log("browser form!");
-            this.socket = new WebSocket(this.url);
-            this.socket.addEventListener('close', () => this.#onClose());
-            this.socket.addEventListener('error', () => this.#onError());
-            this.socket.addEventListener('message', message => this.#onMessage(message));
-            this.socket.addEventListener('open', () => this.#onOpen());
-        // } else {
-        //     console.log("testing form");
-        //     this.socket = new LaurelsSocket();
-        // }
+        this.socket = new WebSocket(this.url);
+        this.socket.addEventListener('close', () => this.#onClose());
+        this.socket.addEventListener('error', () => this.#onError());
+        this.socket.addEventListener('message', message => this.#onMessage(message));
+        this.socket.addEventListener('open', () => this.#onOpen());
+        this.socketMode = isBrowser()? "browser" : "test";
+        console.log(this.socketMode);
         this.socket.binaryType = 'arraybuffer';
         this.notify = makeNotifier<void>();
-        console.log("finished MessageRelay");
+        console.log("finished SocketWrapper");
     }
 
     #onClose() {
-        console.log('MessageRelay: #onClose()');
+        console.log('SocketWrapper: #onClose()');
     }
     #onError() {
-        console.log('MessageRelay: #onError()');
+        console.log('SocketWrapper: #onError()');
     }
     #onMessage(message: { data: ArrayBuffer }) {
-        console.log('MessageRelay: #onMessage()');
+        console.log('SocketWrapper: #onMessage()');
         this.messages.push(new Uint8Array(message.data))
         this.notify.resolve();
     }
     #onOpen() {
-        console.log('MessageRelay: #onOpen()');
+        console.log('SocketWrapper: #onOpen()');
     }
 
     //listener
@@ -93,6 +81,10 @@ export class MessageRelay {
     }
 
     send(buffer: Uint8Array) {
+        // new plan
+        // have conditional that sends host info before hello message (all in the same message)
+        // maybe something that checks if the message is a hello and then sends the host info before the hello is sent (that could be a new method)
+
         //parameter which contains info about socket
         //where multiplexing happens
         // addbuffer();
@@ -102,13 +94,4 @@ export class MessageRelay {
         console.log("sending message using send function");
         this.socket.send(buffer);
     }
-
-    sendMessageWithHeader(buffer) {
-        console.log("sending message with header");
-        this.socket.send(buffer);
-    }
 }
-
-const SocketOptions = { port: 9080, host: '127.0.0.1' }; //web socket connection
-export const SingularSocket = new MessageRelay(SocketOptions);
-// export default SingularSocket;

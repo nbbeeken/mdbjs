@@ -1,9 +1,7 @@
 import { BSON } from "mongodb";
 import { webByteUtils, Buffer } from "./buffer";
 import { Duplex } from "./stream";
-import { SingularSocket, MessageRelay } from '../ws';
-
-export const OP_MSG = 2013;
+import { SocketWrapper } from '../ws';
 
 const streams = new Map<number,SocketInstance>;
 //<k,v> -> <SocketInstance.streamIdentifier,SocketInstance>
@@ -15,8 +13,7 @@ export class SocketInstance extends Duplex {
     keepAliveDelay: number;
     timeoutMS: number;
     noDelay: boolean;
-    /** We make one websocket for every socket in the driver. Now we do not need multiplexing */
-    ws: MessageRelay;
+    ws: SocketWrapper;
     wsReader: AsyncGenerator<Uint8Array, any, unknown>;
     forwarder: Promise<void>;
     remoteAddress: string;
@@ -29,7 +26,7 @@ export class SocketInstance extends Duplex {
         this.options = options;
         this.remoteAddress = options.host;
         this.remotePort = options.port;
-        this.ws = new MessageRelay();
+        this.ws = new SocketWrapper();
         this.wsReader = this.ws[Symbol.asyncIterator]();
         this.forwarder = this.forwardMessagesToDriver();
         this.streamIdentifier = options.streamIdentifier;
@@ -48,10 +45,6 @@ export class SocketInstance extends Duplex {
 
     setNoDelay(noDelay: boolean) {
         this.noDelay = noDelay;
-    }
-
-    getMessageRelay() {
-        return this.ws;
     }
 
     // MessageStream requirement
@@ -92,7 +85,7 @@ export class SocketInstance extends Duplex {
         // console.dir({ send: outgoing });
         // const headedMessage = addStreamIdentifier(outgoingDataBuffer, this.streamIdentifier);
         // this.ws.sendMessageWithHeader(headedMessage);
-        console.log("message please");
+        // console.log("message please");
         this.ws.send(outgoingDataBuffer);
     }
 
@@ -109,28 +102,20 @@ export class SocketInstance extends Duplex {
     }
 }
 
-function addStreamIdentifier(message: Uint8Array,streamIdentifier: number) {
-    console.log("constructingmessage");
-    const responseBytes = BSON.serialize(message);
-    const payloadTypeBuffer = new Uint8Array([0]);
-    const headers = new DataView(new ArrayBuffer(30));
-    headers.setInt32(0,streamIdentifier,true);
-    const bufferResponse = webByteUtils.concat([new Uint8Array(headers.buffer), payloadTypeBuffer, responseBytes]);
-    const dv = new DataView(bufferResponse.buffer, bufferResponse.byteOffset, bufferResponse.byteLength);
-    dv.setInt32(0, bufferResponse.byteLength, true);
-    return new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
-}
-
-function* incrementalNumberGenerator() {
-    let id = 1;
-    while (true) {
-        yield id++;
-    }
-}
-
-let generateIdentifier = incrementalNumberGenerator();
+// function* incrementalNumberGenerator() {
+//     let id = 1;
+//     while (true) {
+//         yield id++;
+//     }
+// }
+//
+// let generateIdentifier = incrementalNumberGenerator();
 
 export function createConnection(options) {
+    // throw new Error('is create connection working');
+    const socket = new SocketInstance(options);
+    return socket;
+
     //options here represent cluster connection info that will be stored in SingularSocket
     // console.log("createconnection");
     // console.log(SocketOptions);
@@ -139,12 +124,12 @@ export function createConnection(options) {
     //will pass in port and host (browser thinks it is where cluster is located)
     //add port and host info to data message
     //will return singular port and host
-    const identifier = generateIdentifier.next().value;
-    options.identifier = identifier;
-    const socket = new SocketInstance(options);
-    console.log("createconnection",streams);
-    if (identifier) {
-        streams.set(identifier,socket);
-    }
-    return socket;
+    // const identifier = generateIdentifier.next().value;
+    // options.identifier = identifier;
+    // const socket = new SocketInstance(options);
+    // console.log("createconnection",streams);
+    // if (identifier) {
+    //     streams.set(identifier,socket);
+    // }
+    // return socket;
 }
