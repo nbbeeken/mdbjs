@@ -2,9 +2,6 @@
 
 const path = require("path");
 
-// const isProduction = process.env.NODE_ENV == "production";
-const isProduction = false;
-
 const config = {
   entry: "./src/index.ts",
   devtool: 'cheap-module-source-map',
@@ -34,15 +31,15 @@ const config = {
   resolve: {
     extensions: [".tsx", ".ts", ".jsx", ".js", "..."],
     alias: {
-      url: require.resolve('whatwg-url'),
-      net: path.resolve(__dirname, 'src/modules/net.ts'),
-      timers: require.resolve('timers-browserify'),
-      stream: require.resolve('readable-stream'),
       buffer: require.resolve('buffer'),
+      stream: require.resolve('readable-stream'),
+      timers: require.resolve('timers-browserify'),
+      url: require.resolve('whatwg-url'),
       util: require.resolve('util/'),
+      crypto: path.resolve(__dirname, 'src/modules/crypto.ts'),
+      net: path.resolve(__dirname, 'src/modules/net.ts'),
       os: path.resolve(__dirname, 'src/modules/os.ts'),
       process: path.resolve(__dirname, 'src/modules/process.ts'),
-      crypto: path.resolve(__dirname, 'src/modules/crypto.ts'),
     },
     fallback: {
       kerberos: false,
@@ -65,10 +62,5 @@ const config = {
 };
 
 module.exports = () => {
-  if (isProduction) {
-    config.mode = "production";
-  } else {
-    config.mode = "development";
-  }
   return config;
 };

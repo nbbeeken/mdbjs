@@ -1,7 +1,15 @@
 import { laurels_socket } from "./laurels_socket";
-import {parseMessage} from "./message_processing";
 
 const WebSocket = isBrowser() ? globalThis.WebSocket : laurels_socket;
+
+function isBrowser() {
+    if ((typeof process === "object" && process.title === 'node') || (typeof importScripts === "function")) {
+        return false;
+    }
+    if ((typeof window === "object")) {
+        return true;
+    }
+}
 
 function makeNotifier<T>(): { p: Promise<T>, resolve: (value: T) => void; reject: (reason?: Error) => void } {
     /** @type {() => void} */
@@ -15,15 +23,6 @@ function makeNotifier<T>(): { p: Promise<T>, resolve: (value: T) => void; reject
     })
     // @ts-ignore
     return { p, resolve, reject }
-}
-
-function isBrowser() {
-    if ((typeof process === "object" && process.title === 'node') || (typeof importScripts === "function")) {
-        return false;
-    }
-    if ((typeof window === "object")) {
-        return true;
-    }
 }
 
 export class SocketWrapper {
@@ -42,11 +41,9 @@ export class SocketWrapper {
         this.socket.addEventListener('message', message => this.#onMessage(message));
         this.socket.addEventListener('open', () => this.#onOpen());
         this.socketMode = isBrowser()? "browser" : "test";
-        console.log(this.socketMode);
         this.socket.binaryType = 'arraybuffer';
         this.notify = makeNotifier<void>();
-        console.log("finished SocketWrapper");
-        this.readyState=false;
+        this.readyState = false; //for prehello message
     }
 
     #onClose() {
@@ -62,18 +59,14 @@ export class SocketWrapper {
     }
     #onOpen() {
         console.log('SocketWrapper: #onOpen()');
-        this.readyState=true;
     }
 
-    //listener
     async *[Symbol.asyncIterator](): AsyncGenerator<Uint8Array> {
-        console.log("listening iterator");
         await this.notify.p;
         this.notify = makeNotifier();
         while (this.messages.length) {
             const value = this.messages.shift();
             if (value) {
-                console.log("listening iterator value:",parseMessage(value));
                 yield value
             }
             await this.notify.p;
@@ -83,17 +76,6 @@ export class SocketWrapper {
     }
 
     send(buffer: Uint8Array) {
-        // new plan
-        // have conditional that sends host info before hello message (all in the same message)
-        // maybe something that checks if the message is a hello and then sends the host info before the hello is sent (that could be a new method)
-
-        //parameter which contains info about socket
-        //where multiplexing happens
-        // addbuffer();
-        //bson has uuid class
-        //or have a counter that starts at 1
-        //every single message that system sends will have unique identifier
-        console.log("sending message using send function");
         this.socket.send(buffer);
     }
 }

@@ -1,11 +1,9 @@
 import { constructMessage, parseMessage } from "./message_processing";
 
-export const OP_MSG = 2013;
-
 export const myHello = () => ({
   helloOk: true,
   isWritablePrimary: true,
-  // topologyVersion: { processId: new BSON.ObjectId(), counter: 0 },
+  // topologyVersion: { processId: new BSON.ObjectId(), counter: 0 }, //bson bug - not necessary for hello
   maxBsonObjectSize: 16777216,
   maxMessageSizeBytes: 48000000,
   maxWriteBatchSize: 100000,
@@ -18,14 +16,6 @@ export const myHello = () => ({
   ok: 1,
 });
 
-export enum WebsocketEvents {
-  open = 'open',          // Connection is opened or re-opened
-  close = 'close',        // Connection is closed
-  error = 'error',        // An error occurred
-  message = 'message',    // A message was received
-  retry = 'retry'         // A try to re-connect is made
-}
-
 export class laurels_socket {
   binaryType: string;
   private readonly url: string;
@@ -35,12 +25,12 @@ export class laurels_socket {
   private readonly eventListeners: Record<string, Array<(message: any) => void>>;
   private closedByUser: boolean = false;
   private retries: number = 0;
-  activated: boolean;
+  private activated: boolean; //for prehello message
 
   constructor(url: string) {
     this.url = url;
     this.eventListeners = {};
-    this.activated = false;
+    this.activated = false; //for prehello message
   }
 
   close() {
@@ -48,23 +38,18 @@ export class laurels_socket {
   }
 
   send(buffer: any) {
-    console.log("sending message through laurels socket");
-    //add hello message to async iterator here
     const message = parseMessage(buffer);
-    console.log("message:",message);
+    // for prehello message
     // if (!this.activated) {
     //   console.log("activating socket");
     //   this.eventListeners["message"][0]({data: constructMessage(message.requestId, {ok:1 })});
     // }
     if (message.doc.hello || message.doc.ismaster) {
-      console.log("message is hello"); //returning hello message
       const hello = constructMessage(message.requestId, myHello());
-      // do sending
-      this.eventListeners["message"][0]({data: hello});
+      this.eventListeners["message"][0]({data: hello}); //hello message
     } else {
-      console.log("message is not hello"); //returning default for ping
       this.eventListeners["message"][0]
-      ({data: constructMessage(message.requestId, {ok:1 }) });
+      ({data: constructMessage(message.requestId, {ok:1 }) }); //returning default for ping
     }
   }
 
