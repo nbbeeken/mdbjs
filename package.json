@@ -9,7 +9,7 @@
     "mdbjs.d.ts"
   ],
   "scripts": {
-    "test": "mocha --require ts-node/register test/**/test.spec.ts",
+    "test": "npm run build && mocha --require ts-node/register -- --inspect-brk test/**/*.spec.ts",
     "build": "webpack --mode=production --node-env=production",
     "build:dev": "webpack --mode=development",
     "build:prod": "webpack --mode=production --node-env=production",

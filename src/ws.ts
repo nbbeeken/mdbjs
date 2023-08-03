@@ -1,8 +1,7 @@
-import { BSON } from "mongodb";
-import { webByteUtils } from "./modules/buffer";
-import { LaurelsSocket } from "./LaurelsSocket";
+import { laurels_socket } from "./laurels_socket";
+import {parseMessage} from "./message_processing";
 
-const WebSocket = isBrowser() ? globalThis.WebSocket : LaurelsSocket;
+const WebSocket = isBrowser() ? globalThis.WebSocket : laurels_socket;
 
 function makeNotifier<T>(): { p: Promise<T>, resolve: (value: T) => void; reject: (reason?: Error) => void } {
     /** @type {() => void} */
@@ -29,10 +28,11 @@ function isBrowser() {
 
 export class SocketWrapper {
     socketMode: string;
-    socket: WebSocket | LaurelsSocket;
+    socket: WebSocket | laurels_socket;
     messages: Array<Uint8Array> = [];
     notify: ReturnType<typeof makeNotifier<void>>;
     url: string;
+    readyState: boolean;
 
     constructor({ host = 'localhost', port = 9080 } = {}) {
         this.url = `ws://${host}:${port}/ws`;
@@ -46,6 +46,7 @@ export class SocketWrapper {
         this.socket.binaryType = 'arraybuffer';
         this.notify = makeNotifier<void>();
         console.log("finished SocketWrapper");
+        this.readyState=false;
     }
 
     #onClose() {
@@ -61,6 +62,7 @@ export class SocketWrapper {
     }
     #onOpen() {
         console.log('SocketWrapper: #onOpen()');
+        this.readyState=true;
     }
 
     //listener
@@ -71,7 +73,7 @@ export class SocketWrapper {
         while (this.messages.length) {
             const value = this.messages.shift();
             if (value) {
-                console.log("listening iterator value:",value);
+                console.log("listening iterator value:",parseMessage(value));
                 yield value
             }
             await this.notify.p;

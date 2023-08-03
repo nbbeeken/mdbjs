@@ -4,8 +4,10 @@ import chai from "chai";
 import { URL } from 'whatwg-url';
 import { MongoClient } from "../dist/mongodb.cjs";
 import { MONGO_CLIENT_EVENTS } from 'mongodb/lib/constants.js'
-import { myHello, constructMessage, parseMessage } from "../src/LaurelsSocket";
+import { myHello } from "../src/laurels_socket";
+import { constructMessage, parseMessage } from "../src/message_processing";
 import { SocketWrapper } from '../src/ws';
+import { createConnection } from "../src/modules/net";
 
 chai.config.truncateThreshold = 0;
 
@@ -35,18 +37,26 @@ describe("All tests:",() => {
       it('check that the helloOk field in the hello message does not change after converting bson to binary and back to bson', () => {
         expect(parseMessage(constructMessage(0,myHello())).doc.helloOk).to.equal(myHello().helloOk);
       });
-    })
-  })
+    });
 
-  describe("Integration Tests:", () => {
+    describe('verify that the pre hello message has the desired information', () => {
+      it('check that host port and address are included in the message', () => {
+        const options = { port: 9080, host: '127.0.0.1' };
+        let x = createConnection(options);
+        let message = parseMessage(constructMessage(0,x.preHelloInfo())).doc;
+        expect(message).to.have.property('host','127.0.0.1');
+        expect(message).to.have.property('port',9080);
+      })
+    })
+
     describe('Socket Sanity Check', () => {
       const ws = new SocketWrapper();
-      it('the socket wrapper should use LaurelsSocket for testing', () => {
+      it('the socket wrapper should use laurels_socket for testing', () => {
         expect(ws.socketMode).to.equal('test');
       });
     });
 
-    describe('Client related tests', () => {
+    describe('Client related tests:', () => {
       let client;
       let events;
 
@@ -73,23 +83,22 @@ describe("All tests:",() => {
 
 
       it('client should not throw error when connecting', async () => {
-        // client.connect().catch(() => null); // prevent it from throwing
-        expect(await client.connect()).to.not.equal(null);
-        // expect(events['connectionCreated']? events['connectionCreated'] : 0).to.equal(1);
+        // setTimeout(() => {
+          expect(await client.connect()).to.not.equal(null);
+        // }, 1000);
       });
 
-      it('the hello handshake is exchanged between node and simulated web socket', async() => {
+      it('the hello handshake is exchanged between node and simulated web socket using server heartbeat as an indicator', async() => {
+        await client.db().command({ping:1});
+        // console.log("events",events);
+        expect(events).to.have.property('serverHeartbeatSucceeded', 1);
+      });
+
+      it('the hello handshake is exchanged between node and simulated web socket using connection created as an indicator', async() => {
         await client.db().command({ping:1});
         // console.log("events",events);
         expect(events).to.have.property('connectionCreated', 1);
-        expect(events).to.have.property('serverHeartbeatSucceeded', 1);
-      })
+      });
     });
-
-    // describe('constructMessage() outputs the correct message', () => {
-    //   it('should have helloOk be true', () => {
-    //
-    //   });
-    // });
   })
 })
