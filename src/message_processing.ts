@@ -34,19 +34,14 @@ export function parseMessage(message: Uint8Array) {
     const numberToReturn = dv.getInt32(20 + nsLen + 4, true);
     const docStart = 20 + nsLen + 4 + 4;
     const docLen = dv.getInt32(docStart, true);
-    //currently erring due to server side message buffer
-    try {
-      const doc = BSON.deserialize(message.subarray(docStart, docStart + docLen));
-      return {
-        ...messageHeader,
-        ns,
-        numberToSkip,
-        numberToReturn,
-        doc
-      };
-    } catch (e) {
-      console.log("error in parseMessage:", e.message);
-    }
+    const doc = BSON.deserialize(message.subarray(docStart, docStart + docLen));
+    return {
+      ...messageHeader,
+      ns,
+      numberToSkip,
+      numberToReturn,
+      doc
+    };
   } else {
     const payloadType = dv.getUint8(20);
     const docStart = 20 + 1;

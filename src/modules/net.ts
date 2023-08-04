@@ -1,10 +1,6 @@
 import { Duplex } from "stream";
 import { SocketWrapper } from '../ws';
 
-//<k,v> -> <SocketInstance.streamIdentifier,SocketInstance>
-const streams = new Map<number,SocketInstance>;
-export default streams;
-
 export class SocketInstance extends Duplex {
     options: { port: number; host: string };
     isKeptAlive: boolean;
@@ -15,20 +11,14 @@ export class SocketInstance extends Duplex {
     wsReader: AsyncGenerator<Uint8Array, any, unknown>;
     remoteAddress: string;
     remotePort: number;
-    streamIdentifier: number;
-    isReady: boolean; //for prehello message
-    whenReady: Promise<boolean>; //for prehello message
 
-    constructor(options: { port: number; host: string; streamIdentifier: number }) {
+    constructor(options: { port: number; host: string}) {
         super();
         this.options = options;
         this.remoteAddress = options.host;
         this.remotePort = options.port;
-        this.streamIdentifier = options.streamIdentifier;
         this.ws = new SocketWrapper();
         this.wsReader = this.ws[Symbol.asyncIterator]();
-        this.isReady = false;
-        this.whenReady = new Promise((resolve, reject) => {});
     }
 
     _write(chunk, encoding, callback) {
@@ -77,21 +67,7 @@ export class SocketInstance extends Duplex {
     }
 }
 
-function* incrementalNumberGenerator() {
-    let id = 1;
-    while (true) {
-        yield id++;
-    }
-}
-
-let generateIdentifier = incrementalNumberGenerator();
-
 export function createConnection(options) {
-    const identifier = generateIdentifier.next().value;
-    options.streamIdentifier = identifier;
     const socket = new SocketInstance(options);
-    if (identifier) {
-        streams.set(identifier, socket);
-    }
     return socket;
 }

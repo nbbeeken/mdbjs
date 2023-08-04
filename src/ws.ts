@@ -1,6 +1,6 @@
-import { laurels_socket } from "./laurels_socket";
+import { TestSocketInstance } from "./test_socket_instance";
 
-const WebSocket = isBrowser() ? globalThis.WebSocket : laurels_socket;
+const WebSocket = isBrowser() ? globalThis.WebSocket : TestSocketInstance;
 
 function isBrowser() {
     if ((typeof process === "object" && process.title === 'node') || (typeof importScripts === "function")) {
@@ -27,11 +27,10 @@ function makeNotifier<T>(): { p: Promise<T>, resolve: (value: T) => void; reject
 
 export class SocketWrapper {
     socketMode: string;
-    socket: WebSocket | laurels_socket;
+    socket: WebSocket | TestSocketInstance;
     messages: Array<Uint8Array> = [];
     notify: ReturnType<typeof makeNotifier<void>>;
     url: string;
-    readyState: boolean;
     currError: boolean;
     isOpen: boolean;
 
@@ -45,7 +44,6 @@ export class SocketWrapper {
         this.socketMode = isBrowser()? "browser" : "test";
         this.socket.binaryType = 'arraybuffer';
         this.notify = makeNotifier<void>();
-        this.readyState = false; //for prehello message
         this.currError = false;
         this.isOpen = false;
     }
@@ -87,7 +85,7 @@ export class SocketWrapper {
         } else {
             setTimeout(() => {
                 this.socket.send(buffer);
-            },100);
+            },1);
         }
     }
 }

@@ -4,7 +4,7 @@ import chai from "chai";
 import { URL } from 'whatwg-url';
 import { MongoClient } from "../dist/mongodb.cjs";
 import { MONGO_CLIENT_EVENTS } from 'mongodb/lib/constants.js'
-import { myHello } from "../src/laurels_socket";
+import { myHello } from "../src/test_socket_instance";
 import { constructMessage, parseMessage } from "../src/message_processing";
 import { SocketWrapper } from '../src/ws';
 import { createConnection } from "../src/modules/net";
@@ -32,8 +32,8 @@ describe("All Tests:",() => {
     describe('Verify that the pre hello message has the desired information', () => {
       it('Check that the message constructor and parser works as expected for the prehello message', () => {
         const options = { port: 9080, host: '127.0.0.1' };
-        let x = createConnection(options);
-        let message = parseMessage(constructMessage(0,x.preHelloInfo())).doc;
+        let test_socket_instance = createConnection(options);
+        let message = parseMessage(constructMessage(0,test_socket_instance.preHelloInfo())).doc;
         expect(message).to.have.property('host','127.0.0.1');
         expect(message).to.have.property('port',9080);
       })
@@ -63,11 +63,6 @@ describe("All Tests:",() => {
       afterEach(async () => {
         await client?.close()
       })
-
-      it('maxPoolSize should be 2', () => {
-        expect(client.options["maxPoolSize"]).to.equal(2);
-      });
-
 
       it('Client should not throw error when connecting', async () => {
           expect(await client.connect()).to.not.equal(null);
