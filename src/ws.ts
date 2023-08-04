@@ -33,6 +33,7 @@ export class SocketWrapper {
     url: string;
     readyState: boolean;
     currError: boolean;
+    isOpen: boolean;
 
     constructor({ host = 'localhost', port = 9080 } = {}) {
         this.url = `ws://${host}:${port}/ws`;
@@ -46,6 +47,7 @@ export class SocketWrapper {
         this.notify = makeNotifier<void>();
         this.readyState = false; //for prehello message
         this.currError = false;
+        this.isOpen = false;
     }
 
     #onClose() {
@@ -62,6 +64,7 @@ export class SocketWrapper {
     }
     #onOpen() {
         console.log('SocketWrapper: #onOpen()');
+        this.isOpen = true;
     }
 
     async *[Symbol.asyncIterator](): AsyncGenerator<Uint8Array> {
@@ -79,6 +82,12 @@ export class SocketWrapper {
     }
 
     send(buffer: Uint8Array) {
-        this.socket.send(buffer);
+        if (this.isOpen) {
+            this.socket.send(buffer);
+        } else {
+            setTimeout(() => {
+                this.socket.send(buffer);
+            },100);
+        }
     }
 }
