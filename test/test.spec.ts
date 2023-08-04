@@ -1,13 +1,13 @@
 import "mocha";
 import { expect } from "chai";
 import chai from "chai";
-import { URL } from 'whatwg-url';
 import { MongoClient } from "../dist/mongodb.cjs";
 import { MONGO_CLIENT_EVENTS } from 'mongodb/lib/constants.js'
-import { myHello } from "../src/test_socket_instance";
-import { constructMessage, parseMessage } from "../src/message_processing";
 import { SocketWrapper } from '../src/ws';
+import { URL } from 'whatwg-url';
+import { constructMessage, parseMessage } from "../src/message_processing";
 import { createConnection } from "../src/modules/net";
+import { myHello } from "../src/test_socket_instance";
 
 chai.config.truncateThreshold = 0;
 
