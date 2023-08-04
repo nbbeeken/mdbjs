@@ -41,7 +41,7 @@ export class SocketInstance extends Duplex {
             for await (const message of this.wsReader) {
                 this.push(message);
             }
-        })()
+        })().then(()=>{}, (error)=>{this.emit('error',error)});
     }
 
     // TCP specific

@@ -32,25 +32,28 @@ export class SocketWrapper {
     notify: ReturnType<typeof makeNotifier<void>>;
     url: string;
     readyState: boolean;
+    currError: boolean;
 
     constructor({ host = 'localhost', port = 9080 } = {}) {
         this.url = `ws://${host}:${port}/ws`;
         this.socket = new WebSocket(this.url);
         this.socket.addEventListener('close', () => this.#onClose());
-        this.socket.addEventListener('error', () => this.#onError());
+        this.socket.addEventListener('error', error => this.#onError(error));
         this.socket.addEventListener('message', message => this.#onMessage(message));
         this.socket.addEventListener('open', () => this.#onOpen());
         this.socketMode = isBrowser()? "browser" : "test";
         this.socket.binaryType = 'arraybuffer';
         this.notify = makeNotifier<void>();
         this.readyState = false; //for prehello message
+        this.currError = false;
     }
 
     #onClose() {
         console.log('SocketWrapper: #onClose()');
     }
-    #onError() {
+    #onError(error) {
         console.log('SocketWrapper: #onError()');
+        this.currError = true;
     }
     #onMessage(message: { data: ArrayBuffer }) {
         console.log('SocketWrapper: #onMessage()');
