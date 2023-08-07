@@ -8,7 +8,8 @@
     "declarationDir": "dist",
     "moduleResolution": "node",
     "allowJs": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "esModuleInterop": true
   },
   "files": ["src/index.ts"]
 }

@@ -1,1 +1,3 @@
-dist/**/*.d.ts
+dist
+node_modules
+.idea

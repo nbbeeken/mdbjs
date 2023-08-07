@@ -2,11 +2,12 @@
 
 const path = require("path");
 
-const isProduction = process.env.NODE_ENV == "production";
-
 const config = {
   entry: "./src/index.ts",
-  devtool: 'source-map',
+  devtool: 'cheap-module-source-map',
+  optimization: {
+    minimize: false
+  },
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'mongodb.cjs',
@@ -30,15 +31,15 @@ const config = {
   resolve: {
     extensions: [".tsx", ".ts", ".jsx", ".js", "..."],
     alias: {
-      url: path.resolve(__dirname, 'src/modules/url.ts'),
+      buffer: require.resolve('buffer'),
+      stream: require.resolve('readable-stream'),
+      timers: require.resolve('timers-browserify'),
+      url: require.resolve('whatwg-url'),
+      util: require.resolve('util/'),
+      crypto: path.resolve(__dirname, 'src/modules/crypto.ts'),
       net: path.resolve(__dirname, 'src/modules/net.ts'),
-      timers: path.resolve(__dirname, 'src/modules/timers.ts'),
-      stream: path.resolve(__dirname, 'src/modules/stream.ts'),
-      buffer: path.resolve(__dirname, 'src/modules/buffer.ts'),
-      util: path.resolve(__dirname, 'src/modules/util.ts'),
       os: path.resolve(__dirname, 'src/modules/os.ts'),
       process: path.resolve(__dirname, 'src/modules/process.ts'),
-      crypto: path.resolve(__dirname, 'src/modules/crypto.ts'),
     },
     fallback: {
       kerberos: false,
@@ -61,10 +62,5 @@ const config = {
 };
 
 module.exports = () => {
-  if (isProduction) {
-    config.mode = "production";
-  } else {
-    config.mode = "development";
-  }
   return config;
 };

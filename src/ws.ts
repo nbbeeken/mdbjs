@@ -1,5 +1,15 @@
-import { BSON } from "mongodb";
-import { webByteUtils } from "./modules/buffer";
+import { TestSocketInstance } from "../test/test_socket_instance";
+
+const WebSocket = isBrowser() ? globalThis.WebSocket : TestSocketInstance;
+
+function isBrowser() {
+    if ((typeof process === "object" && process.title === 'node') || (typeof importScripts === "function")) {
+        return false;
+    }
+    if ((typeof window === "object")) {
+        return true;
+    }
+}
 
 function makeNotifier<T>(): { p: Promise<T>, resolve: (value: T) => void; reject: (reason?: Error) => void } {
     /** @type {() => void} */
@@ -15,35 +25,45 @@ function makeNotifier<T>(): { p: Promise<T>, resolve: (value: T) => void; reject
     return { p, resolve, reject }
 }
 
-export class WebbySocket {
-    socket: WebSocket;
+export class SocketWrapper {
+    socketMode: string;
+    socket: WebSocket | TestSocketInstance;
     messages: Array<Uint8Array> = [];
     notify: ReturnType<typeof makeNotifier<void>>;
+    url: string;
+    currError: boolean;
+    opened: ReturnType<typeof makeNotifier<void>>;
 
     constructor({ host = 'localhost', port = 9080 } = {}) {
-        // this.socket = new WebSocket(`ws://${host}:${port}/ws`);
-        this.socket = new WebSocket(`ws://localhost:9080/ws`);
+        this.url = `ws://${host}:${port}/ws`;
+        this.socket = new WebSocket(this.url);
         this.socket.addEventListener('close', () => this.#onClose());
-        this.socket.addEventListener('error', () => this.#onError());
+        this.socket.addEventListener('error', error => this.#onError(error));
         this.socket.addEventListener('message', message => this.#onMessage(message));
         this.socket.addEventListener('open', () => this.#onOpen());
+        this.socketMode = isBrowser()? "browser" : "test";
         this.socket.binaryType = 'arraybuffer';
         this.notify = makeNotifier<void>();
+        this.currError = false;
+        this.opened = makeNotifier<void>();
     }
 
     #onClose() {
-        console.log('WebbySocket: #onClose()');
+        console.log('SocketWrapper: #onClose()');
+        this.opened = makeNotifier<void>();
     }
-    #onError() {
-        console.log('WebbySocket: #onError()');
+    #onError(error) {
+        console.log('SocketWrapper: #onError()');
+        this.currError = true;
     }
     #onMessage(message: { data: ArrayBuffer }) {
-        console.log('WebbySocket: #onMessage()');
+        console.log('SocketWrapper: #onMessage()');
         this.messages.push(new Uint8Array(message.data))
         this.notify.resolve();
     }
     #onOpen() {
-        console.log('WebbySocket: #onOpen()');
+        console.log('SocketWrapper: #onOpen()');
+        this.opened.resolve();
     }
 
     async *[Symbol.asyncIterator](): AsyncGenerator<Uint8Array> {
@@ -60,28 +80,10 @@ export class WebbySocket {
         throw new Error('socket had no messages after notify.resolve() was called')
     }
 
-    sendFakeMessage(reqId: number, data: Record<string, any>) {
-        setTimeout(() => {
-            this.#onMessage({ data: constructMessage(reqId, data).buffer });
-        }, 1);
-    }
-
-    send(buffer: Uint8Array) {
+    async send(buffer: Uint8Array) {
+        if (this.socketMode == 'browser') {
+            await this.opened.p;
+        }
         this.socket.send(buffer);
     }
-}
-
-export const OP_MSG = 2013;
-function constructMessage(requestId, response) {
-    const responseBytes = BSON.serialize(response);
-    const payloadTypeBuffer = new Uint8Array([0]);
-    const headers = new DataView(new ArrayBuffer(20))
-    headers.setInt32(4, 0, true);
-    headers.setInt32(8, requestId, true);
-    headers.setInt32(12, OP_MSG, true);
-    headers.setInt32(16, 0, true);
-    const bufferResponse = webByteUtils.concat([new Uint8Array(headers.buffer), payloadTypeBuffer, responseBytes]);
-    const dv = new DataView(bufferResponse.buffer, bufferResponse.byteOffset, bufferResponse.byteLength);
-    dv.setInt32(0, bufferResponse.byteLength, true);
-    return new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
 }

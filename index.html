@@ -10,45 +10,4 @@
     <p>hello.</p>
 </body>
 <script src="./dist/mongodb.cjs"></script>
-<script type="module">
-    // import { MongoClient } from './dist/mongodb.cjs';
-    const { MongoClient, BSON, setupHooks } = globalThis.mongodb;
-
-    const myHello = {
-        helloOk: true,
-        isWritablePrimary: true,
-        topologyVersion: { processId: new BSON.ObjectId(), counter: 0 },
-        maxBsonObjectSize: 16777216,
-        maxMessageSizeBytes: 48000000,
-        maxWriteBatchSize: 100000,
-        localTime: new Date(),
-        logicalSessionTimeoutMinutes: 30,
-        connectionId: 85,
-        minWireVersion: 0,
-        maxWireVersion: 17,
-        readOnly: false,
-        ok: 1
-    };
-
-    setupHook({
-        async fromDriver(b, outgoing) {
-            console.info(outgoing);
-            if (outgoing.doc.hello || outgoing.doc.ismaster) {
-                await this.toDriver(outgoing.requestId, myHello);
-            }
-            if (outgoing.doc.insert) {
-                await this.toDriver(outgoing.requestId, { insertedId: outgoing.doc._id })
-            }
-            if (outgoing.doc.find) {
-                await this.toDriver(outgoing.requestId, { cursor: {id: 0n, ns: 'test.test', firstBatch: [{haha: 1}]}, ok: 1 })
-            }
-        }
-    })
-
-    const client = new MongoClient('mongodb://iLoveJavascript', {serverSelectionTimeoutMS: 5000});
-    const collection = client.db('test').collection('test');
-    console.log(await collection.insertOne({a: 1}));
-    console.log(await collection.find({a: 1}).toArray());
-    await client.close();
-</script>
 </html>
