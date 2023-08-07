@@ -1,4 +1,4 @@
-import { TestSocketInstance } from "./test_socket_instance";
+import { TestSocketInstance } from "../test/test_socket_instance";
 
 const WebSocket = isBrowser() ? globalThis.WebSocket : TestSocketInstance;
 
@@ -32,7 +32,7 @@ export class SocketWrapper {
     notify: ReturnType<typeof makeNotifier<void>>;
     url: string;
     currError: boolean;
-    isOpen: boolean;
+    opened: ReturnType<typeof makeNotifier<void>>;
 
     constructor({ host = 'localhost', port = 9080 } = {}) {
         this.url = `ws://${host}:${port}/ws`;
@@ -45,11 +45,12 @@ export class SocketWrapper {
         this.socket.binaryType = 'arraybuffer';
         this.notify = makeNotifier<void>();
         this.currError = false;
-        this.isOpen = false;
+        this.opened = makeNotifier<void>();
     }
 
     #onClose() {
         console.log('SocketWrapper: #onClose()');
+        this.opened = makeNotifier<void>();
     }
     #onError(error) {
         console.log('SocketWrapper: #onError()');
@@ -62,7 +63,7 @@ export class SocketWrapper {
     }
     #onOpen() {
         console.log('SocketWrapper: #onOpen()');
-        this.isOpen = true;
+        this.opened.resolve();
     }
 
     async *[Symbol.asyncIterator](): AsyncGenerator<Uint8Array> {
@@ -79,13 +80,10 @@ export class SocketWrapper {
         throw new Error('socket had no messages after notify.resolve() was called')
     }
 
-    send(buffer: Uint8Array) {
-        if (this.isOpen) {
-            this.socket.send(buffer);
-        } else {
-            setTimeout(() => {
-                this.socket.send(buffer);
-            },1);
+    async send(buffer: Uint8Array) {
+        if (this.socketMode == 'browser') {
+            await this.opened.p;
         }
+        this.socket.send(buffer);
     }
 }

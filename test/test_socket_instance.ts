@@ -1,4 +1,4 @@
-import { constructMessage, parseMessage } from "./message_processing";
+import { constructMessage, parseMessage } from "./wire_message_utils";
 
 export const myHello = () => ({
   helloOk: true,

@@ -5,9 +5,9 @@ import { MongoClient } from "../dist/mongodb.cjs";
 import { MONGO_CLIENT_EVENTS } from 'mongodb/lib/constants.js'
 import { SocketWrapper } from '../src/ws';
 import { URL } from 'whatwg-url';
-import { constructMessage, parseMessage } from "../src/message_processing";
+import { constructMessage, parseMessage } from "./wire_message_utils";
 import { createConnection } from "../src/modules/net";
-import { myHello } from "../src/test_socket_instance";
+import { myHello } from "./test_socket_instance";
 
 chai.config.truncateThreshold = 0;
 

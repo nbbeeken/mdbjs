@@ -1,5 +1,5 @@
 import { BSON } from "mongodb";
-import { webByteUtils } from "./modules/buffer";
+import { webByteUtils } from "../src/modules/web_byte_utils";
 
 export const OP_MSG = 2013;
 

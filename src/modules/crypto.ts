@@ -1,4 +1,4 @@
-import { webByteUtils } from "./buffer";
+import { webByteUtils } from "./web_byte_utils";
 import { Buffer } from "buffer";
 
 export function randomBytes(byteLength) {
