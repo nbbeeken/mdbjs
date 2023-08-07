@@ -24,3 +24,5 @@ How to run tests locally:
 
 Running npm run test will also build the package as well  
 
+Notes:
+In test, the mongo client is imported from dist, so any updates to the repo will require a build before testing.
