@@ -7,3 +7,7 @@ export function hrtime() {
 export function nextTick(fn, ...args) {
     queueMicrotask(fn.bind(null, ...args));
 }
+
+export const platform = 'MongoDB_OS';
+export const arch = 'leg';
+export const env = Object.create(null);

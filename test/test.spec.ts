@@ -1,7 +1,7 @@
 import "mocha";
 import { expect } from "chai";
 import chai from "chai";
-import { MongoClient } from "../dist/mongodb.cjs";
+import { MongoClient } from "..";
 import { MONGO_CLIENT_EVENTS } from 'mongodb/lib/constants.js'
 import { SocketWrapper } from '../src/ws';
 import { URL } from 'whatwg-url';
