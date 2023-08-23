@@ -4,7 +4,7 @@ const path = require("path");
 
 const config = {
   entry: "./src/index.ts",
-  devtool: 'cheap-module-source-map',
+  devtool: 'source-map',
   optimization: {
     minimize: false
   },
@@ -35,11 +35,13 @@ const config = {
       stream: require.resolve('readable-stream'),
       timers: require.resolve('timers-browserify'),
       url: require.resolve('whatwg-url'),
-      util: require.resolve('util/'),
+      util: require.resolve('util'),
+
       crypto: path.resolve(__dirname, 'src/modules/crypto.ts'),
       net: path.resolve(__dirname, 'src/modules/net.ts'),
       os: path.resolve(__dirname, 'src/modules/os.ts'),
       process: path.resolve(__dirname, 'src/modules/process.ts'),
+      zlib: path.resolve(__dirname, 'src/modules/zlib.ts'),
     },
     fallback: {
       kerberos: false,
@@ -57,6 +59,8 @@ const config = {
       zlib: false,
       fs: false,
       path: false,
+      child_process: false,
+      'gcp-metadata': false
     },
   },
 };
